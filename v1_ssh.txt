@@ -1,0 +1,3683 @@
+
+
+ssh -i ./sample-key-001.pem r-user@172.18.1.103
+
+
+export VAULT_URL="https://releases.hashicorp.com/vault" VAULT_VERSION="1.3.2"
+curl --silent --remote-name "${VAULT_URL}/${VAULT_VERSION}/vault_${VAULT_VERSION}_linux_amd64.zip"
+curl --silent --remote-name "${VAULT_URL}/vault/${VAULT_VERSION}/vault_${VAULT_VERSION}_SHA256SUMS"
+curl --silent --remote-name "${VAULT_URL}/${VAULT_VERSION}/${VAULT_VERSION}/vault_${VAULT_VERSION}_SHA256SUMS.sig"
+
+
+[r-user@v1 ~]$ ll
+total 46608
+-rw-rw-r-- 1 r-user r-user 47715706 Feb 25 11:10 vault_1.3.2_linux_amd64.zip
+-rw-rw-r-- 1 r-user r-user      303 Feb 25 11:10 vault_1.3.2_SHA256SUMS
+-rw-rw-r-- 1 r-user r-user      303 Feb 25 11:10 vault_1.3.2_SHA256SUMS.sig
+[r-user@v1 ~]$
+[r-user@v1 ~]$ unzip vault_1.3.2_linux_amd64.zip
+Archive:  vault_1.3.2_linux_amd64.zip
+  inflating: vault
+[r-user@v1 ~]$ ll
+total 175792
+-rwxrwxr-x 1 r-user r-user 132281647 Jan 22 10:50 vault
+-rw-rw-r-- 1 r-user r-user  47715706 Feb 25 11:10 vault_1.3.2_linux_amd64.zip
+-rw-rw-r-- 1 r-user r-user       303 Feb 25 11:10 vault_1.3.2_SHA256SUMS
+-rw-rw-r-- 1 r-user r-user       303 Feb 25 11:10 vault_1.3.2_SHA256SUMS.sig
+[r-user@v1 ~]$ sudo chown root:root vault
+[r-user@v1 ~]$
+[r-user@v1 ~]$ ll
+total 175792
+-rwxrwxr-x 1 root   root   132281647 Jan 22 10:50 vault
+-rw-rw-r-- 1 r-user r-user  47715706 Feb 25 11:10 vault_1.3.2_linux_amd64.zip
+-rw-rw-r-- 1 r-user r-user       303 Feb 25 11:10 vault_1.3.2_SHA256SUMS
+-rw-rw-r-- 1 r-user r-user       303 Feb 25 11:10 vault_1.3.2_SHA256SUMS.sig
+[r-user@v1 ~]$
+[r-user@v1 ~]$ sudo mv vault /usr/local/bin
+[r-user@v1 ~]$
+[r-user@v1 ~]$ vault version
+Vault v1.3.2
+[r-user@v1 ~]$
+[r-user@v1 ~]$ vault -autocomplete-install
+[r-user@v1 ~]$ complete -C /usr/local/bin/vault vault
+[r-user@v1 ~]$
+不用root也可以使用mlock syscall。mlock可以防止swap。
+[r-user@v1 ~]$ sudo setcap cap_ipc_lock=+ep /usr/local/bin/vault
+[r-user@v1 ~]$
+创建唯一的，non-privileged用户使用vault
+[r-user@v1 ~]$ sudo useradd --system --home /etc/vault.d --shell /bin/false vault
+[r-user@v1 ~]$
+[r-user@v1 ~]$
+非缺省值必须在systemd的配置文件中设定
+[r-user@v1 ~]$ sudo touch /etc/systemd/system/vault.service
+[r-user@v1 ~]$
+[r-user@v1 ~]$ sudo vi /etc/systemd/system/vault.service
+[r-user@v1 ~]$
+[r-user@v1 ~]$ cat  /etc/systemd/system/vault.service
+[Unit]
+Description="HashiCorp Vault - A tool for managing secrets"
+Documentation=https://www.vaultproject.io/docs/
+Requires=network-online.target
+After=network-online.target
+ConditionFileNotEmpty=/etc/vault.d/vault.hcl
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+[Service]
+User=vault
+Group=vault
+ProtectSystem=full
+ProtectHome=read-only
+PrivateTmp=yes
+PrivateDevices=yes
+SecureBits=keep-caps
+AmbientCapabilities=CAP_IPC_LOCK
+Capabilities=CAP_IPC_LOCK+ep
+CapabilityBoundingSet=CAP_SYSLOG CAP_IPC_LOCK
+NoNewPrivileges=yes
+ExecStart=/usr/local/bin/vault server -config=/etc/vault.d/vault.hcl
+ExecReload=/bin/kill --signal HUP $MAINPID
+KillMode=process
+KillSignal=SIGINT
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+StartLimitInterval=60
+StartLimitIntervalSec=60
+StartLimitBurst=3
+LimitNOFILE=65536
+LimitMEMLOCK=infinity
+
+[Install]
+WantedBy=multi-user.target
+
+■　在Consul上配置好vault token：
+758114be-5324-114b-39b1-12051c2abbfe
+之后执行下面的内容：
+
+■ 创建configuration文件
+注意address部分用的是common name，因为certificate没有加入SAN(Subject Alternative Names)所以会发生如下X509错误所致。
+Error querying agent: Get https://172.18.1.102:8501/v1/agent/self: x509: certificate is valid for 127.0.0.1, not 172.18.1.102
+这个应该是consul tls ca create命令出了问题。
+workaround之一是修改/etc/hosts文件，加入： 172.18.1.102 server.dc1.consul
+然后不使用IP而是用上面这个CN来指向IP。
+注意要确保/etc/nsswitch.conf文件中hosts访问设定以file在dns前面。
+
+sudo mkdir --parents /etc/vault.d
+sudo touch /etc/vault.d/vault.hcl
+sudo chown --recursive vault:vault /etc/vault.d
+sudo chmod 640 /etc/vault.d/vault.hcl
+
+sudo vi /etc/vault.d/vault.hcl
+sudo cat /etc/vault.d/vault.hcl
+
+api_addr = "https://172.18.1.104:8200"
+cluster_addr = "https://172.18.1.104:8201"
+
+listener "tcp" {
+  address       = "127.0.0.1:8200"
+  tls_disable = 1
+}
+
+listener "tcp" {
+#  address = "172.18.1.102:8501"
+  address = "server.dc1.consul:8501"
+  tls_cert_file = "/etc/vault.d/dc1-server-consul-3.pem"
+  tls_key_file  = "/etc/vault.d/dc1-server-consul-3-key.pem"
+  tls_client_ca_file = "/etc/vault.d/consul-agent-ca.pem"
+  tls_disable_client_certs = "true"
+}
+
+storage "consul" {
+  address = "172.18.1.102:8501"
+  path = "vault/"
+  token = "758114be-5324-114b-39b1-12051c2abbfe"
+  tls_ca_file =  "/etc/consul.d/consul-agent-ca.pem"
+  tls_cert_file = "/etc/consul.d/dc1-server-consul-2.pem"
+  tls_key_file  = "/etc/consul.d/dc1-server-consul-2-key.pem"
+}
+
+ui = true
+log_level = "Debug"
+
+
+
+
+
+[r-user@v1 ~]$ sudo /usr/local/bin/vault policy fmt /etc/vault.d/vault.hcl
+failed to parse policy: 4 errors occurred:
+        * invalid key "listener" on line 0
+        * invalid key "listener" on line 0
+        * invalid key "storage" on line 0
+        * invalid key "ui" on line 20
+
+
+
+[r-user@v1 ~]$ sudo systemctl enable vault
+Created symlink from /etc/systemd/system/multi-user.target.wants/vault.service to /etc/systemd/system/vault.service.
+[r-user@v1 ~]$ sudo systemctl start vault
+[r-user@v1 ~]$ sudo systemctl status vault -l
+● vault.service - "HashiCorp Vault - A tool for managing secrets"
+   Loaded: loaded (/etc/systemd/system/vault.service; enabled; vendor preset: disabled)
+   Active: active (running) since Mon 2020-03-02 15:14:57 JST; 5s ago
+     Docs: https://www.vaultproject.io/docs/
+ Main PID: 4974 (vault)
+   CGroup: /system.slice/vault.service
+           └─4974 /usr/local/bin/vault server -config=/etc/vault.d/vault.hcl
+
+Mar 02 15:14:57 c-test systemd[1]: Started "HashiCorp Vault - A tool for managing secrets".
+Mar 02 15:14:57 c-test vault[4974]: WARNING! Unable to read storage migration status.
+Mar 02 15:14:57 c-test vault[4974]: 2020-03-02T15:14:57.640+0900 [INFO]  proxy environment: http_proxy= https_proxy= no_proxy=
+Mar 02 15:14:57 c-test vault[4974]: 2020-03-02T15:14:57.641+0900 [WARN]  storage migration check error: error="Get http://172.18.1.102:8500/v1/kv/vault/core/migration: dial tcp 172.18.1.102:8500: connect: connection refused"
+Mar 02 15:14:59 c-test vault[4974]: 2020-03-02T15:14:59.642+0900 [WARN]  storage migration check error: error="Get http://172.18.1.102:8500/v1/kv/vault/core/migration: dial tcp 172.18.1.102:8500: connect: connection refused"
+Mar 02 15:15:01 c-test vault[4974]: 2020-03-02T15:15:01.644+0900 [WARN]  storage migration check error: error="Get http://172.18.1.102:8500/v1/kv/vault/core/migration: dial tcp 172.18.1.102:8500: connect: connection refused"
+
+
+此时是有问题的：
+[r-user@c-test ~]$ vault status -address="http://127.0.0.1:8200"
+Error checking seal status: Get http://127.0.0.1:8200/v1/sys/seal-status: dial tcp 127.0.0.1:8200: connect: connection refused
+
+
+■ 需要troubleshooting的时候
+Assuming your Vault service is named vault：
+journalctl -b --no-pager -u vault
+
+和journalctl -xe的效果差不多
+
+将log进行打包
+journalctl -b --no-pager -u vault | gzip -9 > /tmp/"$(hostname)-$(date +%Y-%m-%dT%H-%M-%SZ)-vault.log.gz"
+生成例如如下的文件：
+/tmp/ip-10-42-0-27-2018-10-15T17:06:49Z-vault.log.gz
+
+存放log的地点在systemd中定义，查找/etc/systemd/system/vault.service文件。
+在类似于下面的地方：
+...
+[Service]
+...
+ExecStart=/bin/sh -c '/home/vagrant/bin/vault server -config=/home/vagrant/vault_nano/config/vault -log-level="trace" > /var/log/vault.log
+...
+那么log应该会在静态地址/var/log/vault.log里面。
+
+
+
+■ 搞定TLS后端连接的问题之后
+[r-user@c-test ~]$ sudo systemctl status vault -l
+● vault.service - "HashiCorp Vault - A tool for managing secrets"
+   Loaded: loaded (/etc/systemd/system/vault.service; enabled; vendor preset: disabled)
+   Active: active (running) since Tue 2020-03-03 12:31:15 JST; 27min ago
+     Docs: https://www.vaultproject.io/docs/
+ Main PID: 8723 (vault)
+   CGroup: /system.slice/vault.service
+           └─8723 /usr/local/bin/vault server -config=/etc/vault.d/vault.hcl
+
+Mar 03 12:31:15 c-test vault[8723]: 2020-03-03T12:31:15.643+0900 [DEBUG] storage.consul: config service_tags set: service_tags=
+Mar 03 12:31:15 c-test vault[8723]: 2020-03-03T12:31:15.643+0900 [DEBUG] storage.consul: config service_address set: service_address=<nil>
+Mar 03 12:31:15 c-test vault[8723]: 2020-03-03T12:31:15.643+0900 [DEBUG] storage.consul: config address set: address=server.dc1.consul:8501
+Mar 03 12:31:15 c-test vault[8723]: 2020-03-03T12:31:15.643+0900 [DEBUG] storage.consul: config scheme set: scheme=https
+Mar 03 12:31:15 c-test vault[8723]: 2020-03-03T12:31:15.643+0900 [DEBUG] storage.consul: config token set
+Mar 03 12:31:15 c-test vault[8723]: 2020-03-03T12:31:15.667+0900 [DEBUG] storage.consul: configured TLS
+Mar 03 12:31:15 c-test vault[8723]: 2020-03-03T12:31:15.679+0900 [WARN]  no `api_addr` value specified in config or in VAULT_API_ADDR; falling back to detection if possible, but this value should be manually set
+Mar 03 12:31:15 c-test vault[8723]: 2020-03-03T12:31:15.686+0900 [DEBUG] storage.cache: creating LRU cache: size=0
+Mar 03 12:31:15 c-test vault[8723]: 2020-03-03T12:31:15.779+0900 [DEBUG] cluster listener addresses synthesized: cluster_addresses=[127.0.0.1:8201, 172.18.1.104:8202]
+Mar 03 12:58:04 c-test vault[8723]: 2020-03-03T12:58:04.388+0900 [INFO]  core: seal configuration missing, not initialized
+
+
+修改vault.hcl如下：
+listener "tcp" {
+  address     = "127.0.0.1:8200"
+  tls_disable = 1
+}
+
+listener "tcp" {
+  address       = "172.18.1.104:8201"
+  tls_cert_file = "/etc/vault.d/dc1-server-consul-3.pem"
+  tls_key_file  = "/etc/vault.d/dc1-server-consul-3-key.pem"
+  tls_client_ca_file = "/etc/vault.d/consul-agent-ca.pem"
+  tls_disable_client_certs = "true"
+}
+
+storage "consul" {
+#  address = "172.18.1.102:8501"
+  address = "server.dc1.consul:8501"
+  scheme = "https"
+  path = "vault/"
+  token = "758114be-5324-114b-39b1-12051c2abbfe"
+  tls_ca_file =  "/etc/consul.d/consul-agent-ca.pem"
+  tls_cert_file = "/etc/vault.d/dc1-client-consul-1.pem"
+  tls_key_file  = "/etc/vault.d/dc1-client-consul-1-key.pem"
+}
+api_addr = "http://172.18.1.104:8200"
+cluster_addr = "https://172.18.1.104:8201"
+
+ui = true
+log_level = "Debug"
+
+
+[r-user@c-test ~]$ sudo systemctl status vault -l
+● vault.service - "HashiCorp Vault - A tool for managing secrets"
+   Loaded: loaded (/etc/systemd/system/vault.service; enabled; vendor preset: disabled)
+   Active: active (running) since Tue 2020-03-03 13:37:02 JST; 2s ago
+     Docs: https://www.vaultproject.io/docs/
+ Main PID: 9169 (vault)
+   CGroup: /system.slice/vault.service
+           └─9169 /usr/local/bin/vault server -config=/etc/vault.d/vault.hcl
+
+Mar 03 13:37:03 c-test vault[9169]: 2020-03-03T13:37:02.931+0900 [DEBUG] storage.consul: config disable_registration set: disable_registration=false
+Mar 03 13:37:03 c-test vault[9169]: 2020-03-03T13:37:02.931+0900 [DEBUG] storage.consul: config service set: service=vault
+Mar 03 13:37:03 c-test vault[9169]: 2020-03-03T13:37:02.931+0900 [DEBUG] storage.consul: config service_tags set: service_tags=
+Mar 03 13:37:03 c-test vault[9169]: 2020-03-03T13:37:02.931+0900 [DEBUG] storage.consul: config service_address set: service_address=<nil>
+Mar 03 13:37:03 c-test vault[9169]: 2020-03-03T13:37:02.931+0900 [DEBUG] storage.consul: config address set: address=server.dc1.consul:8501
+Mar 03 13:37:03 c-test vault[9169]: 2020-03-03T13:37:02.931+0900 [DEBUG] storage.consul: config scheme set: scheme=https
+Mar 03 13:37:03 c-test vault[9169]: 2020-03-03T13:37:02.931+0900 [DEBUG] storage.consul: config token set
+Mar 03 13:37:03 c-test vault[9169]: 2020-03-03T13:37:02.945+0900 [DEBUG] storage.consul: configured TLS
+Mar 03 13:37:03 c-test vault[9169]: 2020-03-03T13:37:02.957+0900 [DEBUG] storage.cache: creating LRU cache: size=0
+Mar 03 13:37:03 c-test vault[9169]: 2020-03-03T13:37:03.049+0900 [DEBUG] cluster listener addresses synthesized: cluster_addresses=[127.0.0.1:8201, 172.18.1.104:8202]
+
+
+[r-user@c-test ~]$ vault status -address="http://127.0.0.1:8200"
+Key                Value
+---                -----
+Seal Type          shamir
+Initialized        false
+Sealed             true
+Total Shares       0
+Threshold          0
+Unseal Progress    0/0
+Unseal Nonce       n/a
+Version            n/a
+HA Enabled         true
+
+
+
+[r-user@c-test ~]$ vault operator init
+Unseal Key 1: vGYOe+xC3/yvHUkxjaO4u8R2j05fZgxk6dr6lv5AHfbi
+Unseal Key 2: OGoqt6IuYucMKcbIr8yBdse8HeUi4VarGD4j8V6qOG5a
+Unseal Key 3: dP5vG7d2pCO9ROXaUKk8HNcS/Pgpvpu3F8R2+DdaXcJZ
+Unseal Key 4: I94/7ZRNQiKkQI3C3a05MFJxcoM3xOm7UFrPPew+gsUF
+Unseal Key 5: hNcR2vcMfsQOq5NY1+uu3f2Tizd5k8EcowQyT3BAGFuf
+
+Initial Root Token: s.VP23Tf5pwQkQArG3YQq3lJqS
+
+输入3次：
+[r-user@c-test ~]$ vault operator unseal
+
+
+■　Auto-sealing using Transit Secrets Engine
+
+Vault1用来保护Vault2的master key.
+
+先操作vault1。
+
+sudo mkdir --parents /var/log/vault
+sudo touch /var/log/vault/audit.log
+sudo chown --recursive vault:vault /var/log/vault
+
+[r-user@c-test ~]$ vault audit enable file file_path=/var/log/vault/audit.log
+Success! Enabled the file audit device at: file/
+[r-user@c-test ~]$ vault secrets enable transit
+Success! Enabled the transit secrets engine at: transit/
+
+创建一个新的key
+[r-user@c-test ~]$ vault write -f transit/keys/autounseal
+Success! Data written to: transit/keys/autounseal
+
+创建policy
+tee autounseal.hcl <<EOF
+path "transit/encrypt/autounseal" {
+   capabilities = [ "update" ]
+}
+
+path "transit/decrypt/autounseal" {
+   capabilities = [ "update" ]
+}
+EOF
+
+[r-user@c-test ~]$ vault policy write autounseal autounseal.hcl
+Success! Uploaded policy: autounseal
+
+创建token：
+[r-user@c-test ~]$ vault token create -policy="autounseal" -wrap-ttl=120
+Key                              Value
+---                              -----
+wrapping_token:                  s.nCVMUGDEtH3A9r20Js5bHmqw
+wrapping_accessor:               YMuTQlvxUx2gthQsX2SXyt4q
+wrapping_token_ttl:              2m
+wrapping_token_creation_time:    2020-03-03 16:40:22.182471145 +0900 JST
+wrapping_token_creation_path:    auth/token/create
+wrapped_accessor:                RQKlPzvWOR9a6NxIg1nZoKCo
+
+
+需要把得到的wrapping_token传给Vault2
+
+
+然后操作Vault2，为了简便在同一台主机创建，使用不用的端口（8200和8100）。
+[r-user@c-test ~]$ VAULT_TOKEN="s.nCVMUGDEtH3A9r20Js5bHmqw" vault unwrap
+Key                  Value
+---                  -----
+token                s.dD1WmybfBE3wPh0WNIKQA96k
+token_accessor       RQKlPzvWOR9a6NxIg1nZoKCo
+token_duration       768h
+token_renewable      true
+token_policies       ["autounseal" "default"]
+identity_policies    []
+policies             ["autounseal" "default"]
+
+重新定义login的token
+[r-user@c-test ~]$ export VAULT_TOKEN="s.dD1WmybfBE3wPh0WNIKQA96k"
+
+创建新的configuration文件config-autounseal.hcl：
+disable_mlock = true
+ui=true
+
+storage "file" {
+  path = "/home/r-user/vault-2/data"
+}
+
+listener "tcp" {
+  address     = "127.0.0.1:8100"
+  tls_disable = 1
+}
+
+seal "transit" {
+  address = "http://127.0.0.1:8200"
+  disable_renewal = "false"
+  key_name = "autounseal"
+  mount_path = "transit/"
+  tls_skip_verify = "true"
+}
+
+用这个token和配置文件启动一个新的vault instance
+[r-user@c-test ~]$ vault server -config=config-autounseal.hcl
+==> Vault server configuration:
+
+               Seal Type: transit
+         Transit Address: http://127.0.0.1:8200
+        Transit Key Name: autounseal
+      Transit Mount Path: transit/
+                     Cgo: disabled
+              Listener 1: tcp (addr: "127.0.0.1:8100", cluster address: "127.0.0.1:8101", max_request_duration: "1m30s", max_request_size: "33554432", tls: "disabled")
+               Log Level: info
+                   Mlock: supported: true, enabled: false
+           Recovery Mode: false
+                 Storage: file
+                 Version: Vault v1.3.2
+
+==> Vault server started! Log data will stream in below:
+
+2020-03-03T16:45:30.242+0900 [INFO]  proxy environment: http_proxy= https_proxy= no_proxy=
+2020-03-03T16:45:30.261+0900 [WARN]  no `api_addr` value specified in config or in VAULT_API_ADDR; falling back to detection if possible, but this value should be manually set
+2020-03-03T16:45:30.262+0900 [INFO]  core: stored unseal keys supported, attempting fetch
+2020-03-03T16:45:30.262+0900 [WARN]  failed to unseal core: error="stored unseal keys are supported, but none were found"
+2020-03-03T16:45:35.262+0900 [INFO]  core: stored unseal keys supported, attempting fetch
+2020-03-03T16:45:35.262+0900 [WARN]  failed to unseal core: error="stored unseal keys are supported, but none were found"
+
+此时vault仍然是unseal。
+另外再打开一个terminal：
+[r-user@c-test ~]$ VAULT_ADDR=http://127.0.0.1:8100 vault operator init -recovery-shares=1 -recovery-threshold=1 > recovery-key.txt
+这里生成的recovery keys只是用来做高级别的操作比如生成root token，或者在手动vault operator seal操作之后重新打开vault操作。
+此时看刚才的terminal生成如下输出结果：
+
+2020-03-03T16:45:38.765+0900 [WARN]  core: stored keys supported on init, forcing shares/threshold to 1
+2020-03-03T16:45:38.765+0900 [INFO]  core: security barrier not initialized
+2020-03-03T16:45:38.766+0900 [INFO]  core: security barrier initialized: stored=1 shares=1 threshold=1
+2020-03-03T16:45:38.769+0900 [INFO]  core: post-unseal setup starting
+2020-03-03T16:45:38.794+0900 [INFO]  core: loaded wrapping token key
+2020-03-03T16:45:38.794+0900 [INFO]  core: successfully setup plugin catalog: plugin-directory=
+2020-03-03T16:45:38.794+0900 [INFO]  core: no mounts; adding default mount table
+2020-03-03T16:45:38.796+0900 [INFO]  core: successfully mounted backend: type=cubbyhole path=cubbyhole/
+2020-03-03T16:45:38.796+0900 [INFO]  core: successfully mounted backend: type=system path=sys/
+2020-03-03T16:45:38.797+0900 [INFO]  core: successfully mounted backend: type=identity path=identity/
+2020-03-03T16:45:38.803+0900 [INFO]  core: successfully enabled credential backend: type=token path=token/
+2020-03-03T16:45:38.803+0900 [INFO]  rollback: starting rollback manager
+2020-03-03T16:45:38.803+0900 [INFO]  core: restoring leases
+2020-03-03T16:45:38.804+0900 [INFO]  expiration: lease restore complete
+2020-03-03T16:45:38.805+0900 [INFO]  identity: entities restored
+2020-03-03T16:45:38.805+0900 [INFO]  identity: groups restored
+2020-03-03T16:45:38.807+0900 [WARN]  core: post-unseal upgrade seal keys failed: error="no recovery key found"
+2020-03-03T16:45:38.807+0900 [INFO]  core: post-unseal setup complete
+2020-03-03T16:45:38.810+0900 [INFO]  core: root token generated
+2020-03-03T16:45:38.810+0900 [INFO]  core: pre-seal teardown starting
+2020-03-03T16:45:38.810+0900 [INFO]  rollback: stopping rollback manager
+2020-03-03T16:45:38.810+0900 [INFO]  core: pre-seal teardown complete
+2020-03-03T16:45:38.810+0900 [INFO]  core: stored unseal keys supported, attempting fetch
+2020-03-03T16:45:38.812+0900 [INFO]  core.cluster-listener: starting listener: listener_address=127.0.0.1:8101
+2020-03-03T16:45:38.812+0900 [INFO]  core.cluster-listener: serving cluster requests: cluster_listen_address=127.0.0.1:8101
+2020-03-03T16:45:38.812+0900 [INFO]  core: post-unseal setup starting
+2020-03-03T16:45:38.812+0900 [INFO]  core: loaded wrapping token key
+2020-03-03T16:45:38.812+0900 [INFO]  core: successfully setup plugin catalog: plugin-directory=
+2020-03-03T16:45:38.813+0900 [INFO]  core: successfully mounted backend: type=system path=sys/
+2020-03-03T16:45:38.813+0900 [INFO]  core: successfully mounted backend: type=identity path=identity/
+2020-03-03T16:45:38.813+0900 [INFO]  core: successfully mounted backend: type=cubbyhole path=cubbyhole/
+2020-03-03T16:45:38.814+0900 [INFO]  core: successfully enabled credential backend: type=token path=token/
+2020-03-03T16:45:38.814+0900 [INFO]  core: restoring leases
+2020-03-03T16:45:38.814+0900 [INFO]  rollback: starting rollback manager
+2020-03-03T16:45:38.814+0900 [INFO]  identity: entities restored
+2020-03-03T16:45:38.814+0900 [INFO]  identity: groups restored
+2020-03-03T16:45:38.815+0900 [INFO]  expiration: lease restore complete
+2020-03-03T16:45:38.817+0900 [INFO]  core: post-unseal setup complete
+2020-03-03T16:45:38.817+0900 [INFO]  core: vault is unsealed
+2020-03-03T16:45:38.818+0900 [INFO]  core: unsealed with stored keys: stored_keys_used=1
+2020-03-03T16:45:40.263+0900 [WARN]  core: attempted unseal with stored keys, but vault is already unsealed
+
+
+
+[r-user@c-test ~]$ VAULT_ADDR=http://127.0.0.1:8100 vault status
+Key                      Value
+---                      -----
+Recovery Seal Type       shamir
+Initialized              true
+Sealed                   false
+Total Recovery Shares    1
+Threshold                1
+Version                  1.3.2
+Cluster Name             vault-cluster-e46960c5
+Cluster ID               f93c4ed1-8299-1fe4-143a-c0a552190a6f
+HA Enabled               false
+
+
+
+为了确认auto-unseal功能现在用ctrl+C将vault2关闭，也就是说vault2现在是seal状态。
+然后重新再启动一遍：
+
+[r-user@c-test ~]$ vault server -config=config-autounseal.hcl
+==> Vault server configuration:
+
+               Seal Type: transit
+         Transit Address: http://127.0.0.1:8200
+        Transit Key Name: autounseal
+      Transit Mount Path: transit/
+                     Cgo: disabled
+              Listener 1: tcp (addr: "127.0.0.1:8100", cluster address: "127.0.0.1:8101", max_request_duration: "1m30s", max_request_size: "33554432", tls: "disabled")
+               Log Level: info
+                   Mlock: supported: true, enabled: false
+           Recovery Mode: false
+                 Storage: file
+                 Version: Vault v1.3.2
+
+==> Vault server started! Log data will stream in below:
+
+2020-03-03T16:47:21.003+0900 [INFO]  proxy environment: http_proxy= https_proxy= no_proxy=
+2020-03-03T16:47:21.024+0900 [WARN]  no `api_addr` value specified in config or in VAULT_API_ADDR; falling back to detection if possible, but this value should be manually set
+2020-03-03T16:47:21.025+0900 [INFO]  core: stored unseal keys supported, attempting fetch
+2020-03-03T16:47:21.029+0900 [INFO]  core.cluster-listener: starting listener: listener_address=127.0.0.1:8101
+2020-03-03T16:47:21.029+0900 [INFO]  core.cluster-listener: serving cluster requests: cluster_listen_address=127.0.0.1:8101
+2020-03-03T16:47:21.029+0900 [INFO]  core: post-unseal setup starting
+2020-03-03T16:47:21.030+0900 [INFO]  core: loaded wrapping token key
+2020-03-03T16:47:21.030+0900 [INFO]  core: successfully setup plugin catalog: plugin-directory=
+2020-03-03T16:47:21.032+0900 [INFO]  core: successfully mounted backend: type=system path=sys/
+2020-03-03T16:47:21.032+0900 [INFO]  core: successfully mounted backend: type=identity path=identity/
+2020-03-03T16:47:21.032+0900 [INFO]  core: successfully mounted backend: type=cubbyhole path=cubbyhole/
+2020-03-03T16:47:21.036+0900 [INFO]  core: successfully enabled credential backend: type=token path=token/
+2020-03-03T16:47:21.036+0900 [INFO]  core: restoring leases
+2020-03-03T16:47:21.036+0900 [INFO]  rollback: starting rollback manager
+2020-03-03T16:47:21.037+0900 [INFO]  identity: entities restored
+2020-03-03T16:47:21.037+0900 [INFO]  expiration: lease restore complete
+2020-03-03T16:47:21.037+0900 [INFO]  identity: groups restored
+2020-03-03T16:47:21.040+0900 [INFO]  core: post-unseal setup complete
+2020-03-03T16:47:21.040+0900 [INFO]  core: vault is unsealed
+2020-03-03T16:47:21.040+0900 [INFO]  core: unsealed with stored keys: stored_keys_used=1
+
+
+看到此时Vault server已经是unseal状态了。Transit Address: 为Vault1的8200端口。
+今后只要使用VAULT_TOKEN="s.dD1WmybfBE3wPh0WNIKQA96k"这个token，就可以直接自动unseal Vault2。
+然后看看Vault1此时的audit log：
+[r-user@c-test ~]$ sudo tail -f /var/log/vault/audit.log | jq
+{
+  "time": "2020-03-03T07:47:21.0058535Z",
+  "type": "request",
+  "auth": {
+    "client_token": "hmac-sha256:de93e84722c67aca1264ee754491f14597fed6bff2f14a2d802556d7777d3531",
+    "accessor": "hmac-sha256:59f274953a2da954b883cfedf560f0f89ed9d6ebd2ba7231d77c7077a50582b0",
+    "display_name": "token",
+    "policies": [
+      "autounseal",
+      "default"
+    ],
+    "token_policies": [
+      "autounseal",
+      "default"
+    ],
+    "token_type": "service"
+  },
+  "request": {
+    "id": "f904af21-7b4d-d8c8-5839-457f0f334503",
+    "operation": "update",
+    "client_token": "hmac-sha256:de93e84722c67aca1264ee754491f14597fed6bff2f14a2d802556d7777d3531",
+    "client_token_accessor": "hmac-sha256:59f274953a2da954b883cfedf560f0f89ed9d6ebd2ba7231d77c7077a50582b0",
+    "namespace": {
+      "id": "root"
+    },
+    "path": "auth/token/renew-self",
+    "data": {
+      "increment": "hmac-sha256:14c2a85c94845dd7f7dc732bfb8b22a3fc656385a3ec3719b200bed85d1bd620"
+    },
+    "remote_address": "127.0.0.1"
+  }
+}
+{
+  "time": "2020-03-03T07:47:21.020153918Z",
+  "type": "response",
+  "auth": {
+    "client_token": "hmac-sha256:de93e84722c67aca1264ee754491f14597fed6bff2f14a2d802556d7777d3531",
+    "accessor": "hmac-sha256:59f274953a2da954b883cfedf560f0f89ed9d6ebd2ba7231d77c7077a50582b0",
+    "display_name": "token",
+    "policies": [
+      "autounseal",
+      "default"
+    ],
+    "token_policies": [
+      "autounseal",
+      "default"
+    ],
+    "token_type": "service"
+  },
+  "request": {
+    "id": "f904af21-7b4d-d8c8-5839-457f0f334503",
+    "operation": "update",
+    "client_token": "hmac-sha256:de93e84722c67aca1264ee754491f14597fed6bff2f14a2d802556d7777d3531",
+    "client_token_accessor": "hmac-sha256:59f274953a2da954b883cfedf560f0f89ed9d6ebd2ba7231d77c7077a50582b0",
+    "namespace": {
+      "id": "root"
+    },
+    "path": "auth/token/renew-self",
+    "data": {
+      "increment": "hmac-sha256:14c2a85c94845dd7f7dc732bfb8b22a3fc656385a3ec3719b200bed85d1bd620"
+    },
+    "remote_address": "127.0.0.1"
+  },
+  "response": {
+    "auth": {
+      "client_token": "hmac-sha256:de93e84722c67aca1264ee754491f14597fed6bff2f14a2d802556d7777d3531",
+      "accessor": "hmac-sha256:59f274953a2da954b883cfedf560f0f89ed9d6ebd2ba7231d77c7077a50582b0",
+      "display_name": "token",
+      "policies": [
+        "autounseal",
+        "default"
+      ],
+      "token_policies": [
+        "autounseal",
+        "default"
+      ],
+      "token_type": "service"
+    },
+    "warnings": [
+      "TTL of \"767h54m52s\" exceeded the effective max_ttl of \"767h53m1s\"; TTL value is capped accordingly"
+    ]
+  }
+}
+{
+  "time": "2020-03-03T07:47:21.023522875Z",
+  "type": "request",
+  "auth": {
+    "client_token": "hmac-sha256:de93e84722c67aca1264ee754491f14597fed6bff2f14a2d802556d7777d3531",
+    "accessor": "hmac-sha256:59f274953a2da954b883cfedf560f0f89ed9d6ebd2ba7231d77c7077a50582b0",
+    "display_name": "token",
+    "policies": [
+      "autounseal",
+      "default"
+    ],
+    "token_policies": [
+      "autounseal",
+      "default"
+    ],
+    "token_type": "service"
+  },
+  "request": {
+    "id": "e61292c4-31b9-f1e9-4a72-852b5e60639e",
+    "operation": "update",
+    "client_token": "hmac-sha256:de93e84722c67aca1264ee754491f14597fed6bff2f14a2d802556d7777d3531",
+    "client_token_accessor": "hmac-sha256:59f274953a2da954b883cfedf560f0f89ed9d6ebd2ba7231d77c7077a50582b0",
+    "namespace": {
+      "id": "root"
+    },
+    "path": "transit/encrypt/autounseal",
+    "data": {
+      "plaintext": "hmac-sha256:cb33af4def19bda7492d268617e03e60f0bb78a47c6aa8280558e26f85db710a"
+    },
+    "remote_address": "127.0.0.1"
+  }
+}
+{
+  "time": "2020-03-03T07:47:21.023695704Z",
+  "type": "request",
+  "auth": {
+    "client_token": "hmac-sha256:de93e84722c67aca1264ee754491f14597fed6bff2f14a2d802556d7777d3531",
+    "accessor": "hmac-sha256:59f274953a2da954b883cfedf560f0f89ed9d6ebd2ba7231d77c7077a50582b0",
+    "display_name": "token",
+    "policies": [
+      "autounseal",
+      "default"
+    ],
+    "token_policies": [
+      "autounseal",
+      "default"
+    ],
+    "token_type": "service"
+  },
+  "request": {
+    "id": "2466bf11-348c-5e9e-2e0e-a8a22c12cf6f",
+    "operation": "update",
+    "client_token": "hmac-sha256:de93e84722c67aca1264ee754491f14597fed6bff2f14a2d802556d7777d3531",
+    "client_token_accessor": "hmac-sha256:59f274953a2da954b883cfedf560f0f89ed9d6ebd2ba7231d77c7077a50582b0",
+    "namespace": {
+      "id": "root"
+    },
+    "path": "auth/token/renew-self",
+    "data": {
+      "increment": "hmac-sha256:14c2a85c94845dd7f7dc732bfb8b22a3fc656385a3ec3719b200bed85d1bd620"
+    },
+    "remote_address": "127.0.0.1"
+  }
+}
+{
+  "time": "2020-03-03T07:47:21.023729267Z",
+  "type": "response",
+  "auth": {
+    "client_token": "hmac-sha256:de93e84722c67aca1264ee754491f14597fed6bff2f14a2d802556d7777d3531",
+    "accessor": "hmac-sha256:59f274953a2da954b883cfedf560f0f89ed9d6ebd2ba7231d77c7077a50582b0",
+    "display_name": "token",
+    "policies": [
+      "autounseal",
+      "default"
+    ],
+    "token_policies": [
+      "autounseal",
+      "default"
+    ],
+    "token_type": "service"
+  },
+  "request": {
+    "id": "e61292c4-31b9-f1e9-4a72-852b5e60639e",
+    "operation": "update",
+    "client_token": "hmac-sha256:de93e84722c67aca1264ee754491f14597fed6bff2f14a2d802556d7777d3531",
+    "client_token_accessor": "hmac-sha256:59f274953a2da954b883cfedf560f0f89ed9d6ebd2ba7231d77c7077a50582b0",
+    "namespace": {
+      "id": "root"
+    },
+    "path": "transit/encrypt/autounseal",
+    "data": {
+      "plaintext": "hmac-sha256:cb33af4def19bda7492d268617e03e60f0bb78a47c6aa8280558e26f85db710a"
+    },
+    "remote_address": "127.0.0.1"
+  },
+  "response": {
+    "data": {
+      "ciphertext": "hmac-sha256:e5e64606b3eac265a12eb4cc274fadb3c2ccf4fd5a501a04778ed9ec6a3de1b7"
+    }
+  }
+}
+{
+  "time": "2020-03-03T07:47:21.028195563Z",
+  "type": "request",
+  "auth": {
+    "client_token": "hmac-sha256:de93e84722c67aca1264ee754491f14597fed6bff2f14a2d802556d7777d3531",
+    "accessor": "hmac-sha256:59f274953a2da954b883cfedf560f0f89ed9d6ebd2ba7231d77c7077a50582b0",
+    "display_name": "token",
+    "policies": [
+      "autounseal",
+      "default"
+    ],
+    "token_policies": [
+      "autounseal",
+      "default"
+    ],
+    "token_type": "service"
+  },
+  "request": {
+    "id": "9caa3385-9760-7c51-d6a4-12a15253c9b4",
+    "operation": "update",
+    "client_token": "hmac-sha256:de93e84722c67aca1264ee754491f14597fed6bff2f14a2d802556d7777d3531",
+    "client_token_accessor": "hmac-sha256:59f274953a2da954b883cfedf560f0f89ed9d6ebd2ba7231d77c7077a50582b0",
+    "namespace": {
+      "id": "root"
+    },
+    "path": "transit/decrypt/autounseal",
+    "data": {
+      "ciphertext": "hmac-sha256:379718a8098618c5571dc8d69dbb88f3030c237af5fed1b8b16713fde7a97ffe"
+    },
+    "remote_address": "127.0.0.1"
+  }
+}
+{
+  "time": "2020-03-03T07:47:21.028479252Z",
+  "type": "response",
+  "auth": {
+    "client_token": "hmac-sha256:de93e84722c67aca1264ee754491f14597fed6bff2f14a2d802556d7777d3531",
+    "accessor": "hmac-sha256:59f274953a2da954b883cfedf560f0f89ed9d6ebd2ba7231d77c7077a50582b0",
+    "display_name": "token",
+    "policies": [
+      "autounseal",
+      "default"
+    ],
+    "token_policies": [
+      "autounseal",
+      "default"
+    ],
+    "token_type": "service"
+  },
+  "request": {
+    "id": "9caa3385-9760-7c51-d6a4-12a15253c9b4",
+    "operation": "update",
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    "client_token": "hmac-sha256:de93e84722c67aca1264ee754491f14597fed6bff2f14a2d802556d7777d3531",
+    "client_token_accessor": "hmac-sha256:59f274953a2da954b883cfedf560f0f89ed9d6ebd2ba7231d77c7077a50582b0",
+    "namespace": {
+      "id": "root"
+    },
+    "path": "transit/decrypt/autounseal",
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    "data": {
+      "ciphertext": "hmac-sha256:379718a8098618c5571dc8d69dbb88f3030c237af5fed1b8b16713fde7a97ffe"
+    },
+    "remote_address": "127.0.0.1"
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  },
+  "response": {
+    "data": {
+      "plaintext": "hmac-sha256:7dec4bdcd22c9852f3d621d7243611fe01723e393e6d6c2398e0fe9582aeda83"
+    }
+  }
+}
+{
+  "time": "2020-03-03T07:47:21.037663158Z",
+  "type": "response",
+  "auth": {
+    "client_token": "hmac-sha256:de93e84722c67aca1264ee754491f14597fed6bff2f14a2d802556d7777d3531",
+    "accessor": "hmac-sha256:59f274953a2da954b883cfedf560f0f89ed9d6ebd2ba7231d77c7077a50582b0",
+    "display_name": "token",
+    "policies": [
+      "autounseal",
+      "default"
+    ],
+    "token_policies": [
+      "autounseal",
+      "default"
+    ],
+    "token_type": "service"
+  },
+  "request": {
+    "id": "2466bf11-348c-5e9e-2e0e-a8a22c12cf6f",
+    "operation": "update",
+    "client_token": "hmac-sha256:de93e84722c67aca1264ee754491f14597fed6bff2f14a2d802556d7777d3531",
+    "client_token_accessor": "hmac-sha256:59f274953a2da954b883cfedf560f0f89ed9d6ebd2ba7231d77c7077a50582b0",
+    "namespace": {
+      "id": "root"
+    },
+    "path": "auth/token/renew-self",
+    "data": {
+      "increment": "hmac-sha256:14c2a85c94845dd7f7dc732bfb8b22a3fc656385a3ec3719b200bed85d1bd620"
+    },
+    "remote_address": "127.0.0.1"
+  },
+  "response": {
+    "auth": {
+      "client_token": "hmac-sha256:de93e84722c67aca1264ee754491f14597fed6bff2f14a2d802556d7777d3531",
+      "accessor": "hmac-sha256:59f274953a2da954b883cfedf560f0f89ed9d6ebd2ba7231d77c7077a50582b0",
+      "display_name": "token",
+      "policies": [
+        "autounseal",
+        "default"
+      ],
+      "token_policies": [
+        "autounseal",
+        "default"
+      ],
+      "token_type": "service"
+    }
+  }
+}
+{
+  "time": "2020-03-03T07:47:21.039578243Z",
+  "type": "request",
+  "auth": {
+    "client_token": "hmac-sha256:de93e84722c67aca1264ee754491f14597fed6bff2f14a2d802556d7777d3531",
+    "accessor": "hmac-sha256:59f274953a2da954b883cfedf560f0f89ed9d6ebd2ba7231d77c7077a50582b0",
+    "display_name": "token",
+    "policies": [
+      "autounseal",
+      "default"
+    ],
+    "token_policies": [
+      "autounseal",
+      "default"
+    ],
+    "token_type": "service"
+  },
+  "request": {
+    "id": "47fa2cf3-7755-20a7-dd6b-b370b87e02bc",
+    "operation": "update",
+    "client_token": "hmac-sha256:de93e84722c67aca1264ee754491f14597fed6bff2f14a2d802556d7777d3531",
+    "client_token_accessor": "hmac-sha256:59f274953a2da954b883cfedf560f0f89ed9d6ebd2ba7231d77c7077a50582b0",
+    "namespace": {
+      "id": "root"
+    },
+    "path": "transit/encrypt/autounseal",
+    "data": {
+      "plaintext": "hmac-sha256:cb33af4def19bda7492d268617e03e60f0bb78a47c6aa8280558e26f85db710a"
+    },
+    "remote_address": "127.0.0.1"
+  }
+}
+{
+  "time": "2020-03-03T07:47:21.039797164Z",
+  "type": "response",
+  "auth": {
+    "client_token": "hmac-sha256:de93e84722c67aca1264ee754491f14597fed6bff2f14a2d802556d7777d3531",
+    "accessor": "hmac-sha256:59f274953a2da954b883cfedf560f0f89ed9d6ebd2ba7231d77c7077a50582b0",
+    "display_name": "token",
+    "policies": [
+      "autounseal",
+      "default"
+    ],
+    "token_policies": [
+      "autounseal",
+      "default"
+    ],
+    "token_type": "service"
+  },
+  "request": {
+    "id": "47fa2cf3-7755-20a7-dd6b-b370b87e02bc",
+    "operation": "update",
+    "client_token": "hmac-sha256:de93e84722c67aca1264ee754491f14597fed6bff2f14a2d802556d7777d3531",
+    "client_token_accessor": "hmac-sha256:59f274953a2da954b883cfedf560f0f89ed9d6ebd2ba7231d77c7077a50582b0",
+    "namespace": {
+      "id": "root"
+    },
+    "path": "transit/encrypt/autounseal",
+    "data": {
+      "plaintext": "hmac-sha256:cb33af4def19bda7492d268617e03e60f0bb78a47c6aa8280558e26f85db710a"
+    },
+    "remote_address": "127.0.0.1"
+  },
+  "response": {
+    "data": {
+      "ciphertext": "hmac-sha256:72a8d3bc92b4c28688a5a31b9f145df910ad5ed7c4e08a27d8258561badd3a57"
+    }
+  }
+}
+
+
+
+■ transit engine 还有一个功能是可以rotate the encryption key
+key可以被手动rotated，或者使用rotation API，通过cron，CI pipeline，或者Nomad batch job，Kubernetes Job等方式自动进行rotate。Vault在加密的时候将会把version of key添加到ciphertext的前面。
+[r-user@c-test ~]$ vault list transit/keys
+Keys
+----
+autounseal
+[r-user@c-test ~]$ vault list transit-blog/keys
+Keys
+----
+hr
+
+[r-user@c-test ~]$ vault write -f transit/keys/orders
+Success! Data written to: transit/keys/orders
+[r-user@c-test ~]$ vault write transit/encrypt/orders plaintext=$(base64 <<< "4111 1111 1111 1111")
+Key           Value
+---           -----
+ciphertext    vault:v1:cptKCJf/dysxvE0P7GzgzYXk9dGqO4l11MrhPdwwbSKHpTaMA7Hhok4WtKjyYTOO
+[r-user@c-test ~]$ vault write transit/decrypt/orders ciphertext=vault:v1:cptKCJf/dysxvE0P7GzgzYXk9dGqO4l11MrhPdwwbSKHpTaMA7Hhok4WtKjyYTOO
+Key          Value
+---          -----
+plaintext    NDExMSAxMTExIDExMTEgMTExMQo=
+[r-user@c-test ~]$ base64 --decode <<< NDExMSAxMTExIDExMTEgMTExMQo=
+4111 1111 1111 1111
+
+下面进行key的rotate，从此后的密文都是用新版的key进行加密的：
+[r-user@c-test ~]$ vault write -f transit/keys/orders/rotate
+Success! Data written to: transit/keys/orders/rotate
+[r-user@c-test ~]$ vault write transit/encrypt/orders plaintext=$(base64 <<< "4111 1111 1111 1111")
+Key           Value
+---           -----
+ciphertext    vault:v2:af0bkXqShQl9Xg8CRK9MB2mTWx6AHl0+F8H6FhyvJDiOgp5eEel1u8GXpKaQYQ3W
+还可以将之前的密文进行rewrap更新为新版的：
+[r-user@c-test ~]$ vault write transit/rewrap/orders ciphertext=vault:v1:cptKCJf/dysxvE0P7GzgzYXk9dGqO4l11MrhPdwwbSKHpTaMA7Hhok4WtKjyYTOO
+Key           Value
+---           -----
+ciphertext    vault:v2:sI5OZk7e1sm3RFeWL6Uq0hUddx4Gvd7zTMasu1LYRzhV8NgJ2one0PXduYldSIHb
+这个操作不会泄露明文，但是vault会用keyring中旧的key进行解密后用新key再加密。
+
+
+如果想要删除一个key的话，因为后果是无法再解密这个key生成的密文，所以需要先明确设置config才能删。
+[r-user@c-test ~]$ vault delete transit/keys/orders
+Error deleting transit/keys/orders: Error making API request.
+
+URL: DELETE http://172.18.1.104:8200/v1/transit/keys/orders
+Code: 400. Errors:
+
+* error deleting policy orders: deletion is not allowed for this key
+[r-user@c-test ~]$ vault read transit/keys/orders
+Key                       Value
+---                       -----
+allow_plaintext_backup    false
+deletion_allowed          false
+derived                   false
+exportable                false
+keys                      map[1:1584325101 2:1584325517]
+latest_version            2
+min_available_version     0
+min_decryption_version    1
+min_encryption_version    0
+name                      orders
+supports_decryption       true
+supports_derivation       true
+supports_encryption       true
+supports_signing          false
+type                      aes256-gcm96
+
+[r-user@c-test ~]$ vault write -f transit/keys/orders/config deletion_allowed="true"
+Success! Data written to: transit/keys/orders/config
+[r-user@c-test ~]$ vault delete transit/keys/orders
+Success! Data deleted (if it existed) at: transit/keys/orders
+
+
+
+■ 理解一下token，role，auth，entity等概念
+
+
+[r-user@c-test ~]$ vault write auth/token/roles/zabbix allowed_policies="default" period="24h"
+Success! Data written to: auth/token/roles/zabbix
+
+[r-user@c-test ~]$ vault auth list
+Path      Type     Accessor               Description
+----      ----     --------               -----------
+token/    token    auth_token_bde75e77    token based credentials
+[r-user@c-test ~]$
+
+
+[r-user@c-test ~]$ vault auth list -detailed
+Path      Plugin    Accessor               Default TTL    Max TTL    Token Type         Replication    Seal Wrap    External Entropy Access    Options    Description                UUID
+----      ------    --------               -----------    -------    ----------         -----------    ---------    -----------------------    -------    -----------                ----
+token/    token     auth_token_bde75e77    system         system     default-service    replicated     false        false                      map[]      token based credentials    f34a6bc9-3616-3703-6ebe-2a171487d314
+[r-user@c-test ~]$
+[r-user@c-test ~]$
+[r-user@c-test ~]$ vault token create -role=zabbix
+Key                  Value
+---                  -----
+token                s.Do5Oufe4HyUdLCuzx7PeHaIO
+token_accessor       fP3lFhU5XHY0gxOhRIFtAMj3
+token_duration       24h
+token_renewable      true
+token_policies       ["default"]
+identity_policies    []
+policies             ["default"]
+[r-user@c-test ~]$
+
+[r-user@c-test ~]$ vault read sys/internal/counters/tokens
+Key         Value
+---         -----
+counters    map[service_tokens:map[total:4]]
+[r-user@c-test ~]$
+[r-user@c-test ~]$
+[r-user@c-test ~]$ vault read sys/internal/counters/entities
+Key         Value
+---         -----
+counters    map[entities:map[total:0]]
+[r-user@c-test ~]$
+[r-user@c-test ~]$
+[r-user@c-test ~]$ vault token create
+Key                  Value
+---                  -----
+token                s.SQgD4QxIA1qgRaQPrljnthUV
+token_accessor       cBjqRBjFQHTY1vz5nTl9SxRo
+token_duration       ∞
+token_renewable      false
+token_policies       ["root"]
+identity_policies    []
+policies             ["root"]
+
+[r-user@c-test ~]$ vault read sys/internal/counters/tokens
+Key         Value
+---         -----
+counters    map[service_tokens:map[total:5]]
+[r-user@c-test ~]$
+[r-user@c-test ~]$ vault token lookup s.SQgD4QxIA1qgRaQPrljnthUV
+Key                 Value
+---                 -----
+accessor            cBjqRBjFQHTY1vz5nTl9SxRo
+creation_time       1583386783
+creation_ttl        0s
+display_name        token
+entity_id           n/a
+expire_time         <nil>
+explicit_max_ttl    0s
+id                  s.SQgD4QxIA1qgRaQPrljnthUV
+issue_time          2020-03-05T14:39:43.244826903+09:00
+meta                <nil>
+num_uses            0
+orphan              false
+path                auth/token/create
+policies            [root]
+renewable           false
+ttl                 0s
+type                service
+[r-user@c-test ~]$
+[r-user@c-test ~]$ vault token lookup s.VP23Tf5pwQkQArG3YQq3lJqS
+Key                 Value
+---                 -----
+accessor            Wi1n6GFpEoI8GBqWCJr6mzsS
+creation_time       1583211117
+creation_ttl        0s
+display_name        root
+entity_id           n/a
+expire_time         <nil>
+explicit_max_ttl    0s
+id                  s.VP23Tf5pwQkQArG3YQq3lJqS
+meta                <nil>
+num_uses            0
+orphan              true
+path                auth/token/root
+policies            [root]
+ttl                 0s
+type                service
+[r-user@c-test ~]$
+[r-user@c-test ~]$
+[r-user@c-test ~]$
+[r-user@c-test ~]$ vault token lookup s.Do5Oufe4HyUdLCuzx7PeHaIO
+Key                 Value
+---                 -----
+accessor            fP3lFhU5XHY0gxOhRIFtAMj3
+creation_time       1583386635
+creation_ttl        24h
+display_name        token
+entity_id           n/a
+expire_time         2020-03-06T14:37:15.639530028+09:00
+explicit_max_ttl    0s
+id                  s.Do5Oufe4HyUdLCuzx7PeHaIO
+issue_time          2020-03-05T14:37:15.639545269+09:00
+meta                <nil>
+num_uses            0
+orphan              false
+path                auth/token/create/zabbix
+policies            [default]
+renewable           true
+role                zabbix
+ttl                 23h53m28s
+type                service
+[r-user@c-test ~]$
+
+这个是之前创建的只有2m寿命的token：
+[r-user@c-test ~]$ vault token lookup s.nCVMUGDEtH3A9r20Js5bHmqw
+Error looking up token: Error making API request.
+
+URL: POST http://127.0.0.1:8200/v1/auth/token/lookup
+Code: 403. Errors:
+
+* bad token
+
+这个是之前创建的unwrap之后的给vault2进行autounseal的token：
+[r-user@c-test ~]$ vault token lookup s.dD1WmybfBE3wPh0WNIKQA96k
+Key                  Value
+---                  -----
+accessor             RQKlPzvWOR9a6NxIg1nZoKCo
+creation_time        1583221222
+creation_ttl         768h
+display_name         token
+entity_id            n/a
+expire_time          2020-04-04T16:40:22.027640337+09:00
+explicit_max_ttl     0s
+id                   s.dD1WmybfBE3wPh0WNIKQA96k
+issue_time           2020-03-03T16:40:22.173010985+09:00
+last_renewal         2020-03-03T16:47:21.027640714+09:00
+last_renewal_time    1583221641
+meta                 <nil>
+num_uses             0
+orphan               false
+path                 auth/token/create
+policies             [autounseal default]
+renewable            true
+ttl                  721h54m47s
+type                 service
+
+
+
+
+[r-user@c-test ~]$ vault token create -policy=default
+Key                  Value
+---                  -----
+token                s.FWIAMtuh0amWwlMP91zCrdGg
+token_accessor       SD51RNfzHWYeq7U8GBWu5nyP
+token_duration       768h
+token_renewable      true
+token_policies       ["default"]
+identity_policies    []
+policies             ["default"]
+[r-user@c-test ~]$
+[r-user@c-test ~]$ vault read sys/internal/counters/tokens
+Key         Value
+---         -----
+counters    map[service_tokens:map[total:6]]
+
+
+■ Auth method - userpass
+[r-user@c-test ~]$ vault auth enable userpass
+Success! Enabled userpass auth method at: userpass/
+[r-user@c-test ~]$
+[r-user@c-test ~]$
+[r-user@c-test ~]$ vault write auth/userpass/users/mitchellh \
+>     password=foo \
+>     policies=admins
+Success! Data written to: auth/userpass/users/mitchellh
+这个叫做admins的policy实际上没有创建，但是创建auth的命令也走通了。
+
+[r-user@c-test ~]$ vault login -method=userpass \
+>     username=mitchellh \
+>     password=foo
+Success! You are now authenticated. The token information displayed below
+is already stored in the token helper. You do NOT need to run "vault login"
+again. Future Vault requests will automatically use this token.
+
+Key                    Value
+---                    -----
+token                  s.ZV1GkcjD0xq5NKcjpF7XoVGE
+token_accessor         WvoA8hbk6Z4Ab92UfbbW3HWx
+token_duration         768h
+token_renewable        true
+token_policies         ["admins" "default"]
+identity_policies      []
+policies               ["admins" "default"]
+token_meta_username    mitchellh
+
+
+[r-user@c-test ~]$ vault token lookup
+Key                 Value
+---                 -----
+accessor            WvoA8hbk6Z4Ab92UfbbW3HWx
+creation_time       1583392126
+creation_ttl        768h
+display_name        userpass-mitchellh
+entity_id           e90a0549-6100-9e2c-9f7b-0b0a792ecb87
+expire_time         2020-04-06T16:08:46.364190343+09:00
+explicit_max_ttl    0s
+id                  s.ZV1GkcjD0xq5NKcjpF7XoVGE
+issue_time          2020-03-05T16:08:46.364238323+09:00
+meta                map[username:mitchellh]
+num_uses            0
+orphan              true
+path                auth/userpass/login/mitchellh
+policies            [admins default]
+renewable           true
+ttl                 767h57m6s
+type                service
+
+
+[r-user@c-test ~]$ VAULT_TOKEN="s.SQgD4QxIA1qgRaQPrljnthUV" vault read sys/internal/counters/tokens
+Key         Value
+---         -----
+counters    map[service_tokens:map[total:7]]
+
+[r-user@c-test ~]$ VAULT_TOKEN="s.SQgD4QxIA1qgRaQPrljnthUV" vault read sys/internal/counters/entities
+Key         Value
+---         -----
+counters    map[entities:map[total:1]]
+
+
+{
+  "time": "2020-03-05T07:08:46.375700214Z",
+  "type": "response",
+  "auth": {
+    "client_token": "hmac-sha256:703946e6704e69b6fbb6414c4c07e49f2c892e7daed60e3ab1deb0ed20aad6b1",
+    "accessor": "hmac-sha256:cc05a8f9ef1f780f5bd6383fa4578c5acecff4e09abe53589d58c5d23754fce6",
+    "display_name": "userpass-mitchellh",
+    "policies": [
+      "admins",
+      "default"
+    ],
+    "token_policies": [
+      "admins",
+      "default"
+    ],
+    "metadata": {
+      "username": "mitchellh"
+    },
+    "entity_id": "e90a0549-6100-9e2c-9f7b-0b0a792ecb87",
+    "token_type": "service"
+  },
+  "request": {
+　　^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    "id": "b055a065-a4ea-0a20-9c98-7c43716a48f4",
+    "operation": "update",
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    "namespace": {
+      "id": "root"
+　　　　　　　^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    },
+    "path": "auth/userpass/login/mitchellh",
+　　　　　　　　　　^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    "data": {
+      "password": "hmac-sha256:a280ffc7b3d2a4db19ceaf2ae0bc4eaf1b8e01d1060c1d81bee1af8c0fed395c"
+    },
+    "remote_address": "127.0.0.1"
+  },
+  "response": {
+    "auth": {
+      "client_token": "hmac-sha256:703946e6704e69b6fbb6414c4c07e49f2c892e7daed60e3ab1deb0ed20aad6b1",
+      "accessor": "hmac-sha256:cc05a8f9ef1f780f5bd6383fa4578c5acecff4e09abe53589d58c5d23754fce6",
+      "display_name": "userpass-mitchellh",
+      "policies": [
+        "admins",
+        "default"
+      ],
+      "token_policies": [
+        "admins",
+        "default"
+      ],
+      "metadata": {
+        "username": "mitchellh"
+      },
+      "entity_id": "e90a0549-6100-9e2c-9f7b-0b0a792ecb87",
+　　　　　　　　　　　　　　　^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      "token_type": "service"
+    }
+  }
+}
+
+
+
+
+■ 创建没有identity的token
+
+[r-user@c-test ~]$ vault token create -policy=default
+Key                  Value
+---                  -----
+token                s.tEEXpLYcb6rNjDLYua7dAO7P
+token_accessor       DVfZznavAWKeRI0JW464QE94
+token_duration       768h
+token_renewable      true
+token_policies       ["default"]
+identity_policies    []
+policies             ["default"]
+[r-user@c-test ~]$
+[r-user@c-test ~]$
+[r-user@c-test ~]$
+[r-user@c-test ~]$
+[r-user@c-test ~]$  vault read sys/internal/counters/tokens
+Key         Value
+---         -----
+counters    map[service_tokens:map[total:8]]
+
+
+
+{
+  "time": "2020-03-05T07:50:55.525290022Z",
+  "type": "response",
+  "auth": {
+    "client_token": "hmac-sha256:5e27eb5a8fc333dc507c38187f12461b0fdc25d3fdb70762ca1449b5b94b454b",
+    "accessor": "hmac-sha256:287219af85272b762a56f1330aa694ab0e99fe52b8216a95462720626d4888a1",
+    "display_name": "token",
+    "policies": [
+      "root"
+    ],
+    "token_policies": [
+      "root"
+    ],
+    "token_type": "service"
+  },
+  "request": {
+   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    "id": "acfb3b31-f9cc-7e48-e6a5-f8d32f194200",
+    "operation": "update",
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    "client_token": "hmac-sha256:5e27eb5a8fc333dc507c38187f12461b0fdc25d3fdb70762ca1449b5b94b454b",
+    "client_token_accessor": "hmac-sha256:287219af85272b762a56f1330aa694ab0e99fe52b8216a95462720626d4888a1",
+    "namespace": {
+      "id": "root"
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    },
+    "path": "auth/token/create",
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    "data": {
+      "display_name": "hmac-sha256:257daf7139036d2ffbe73942ec0df3aa65c4596106ffb8546583786635938fb8",
+      "entity_alias": "hmac-sha256:257daf7139036d2ffbe73942ec0df3aa65c4596106ffb8546583786635938fb8",
+      "explicit_max_ttl": "hmac-sha256:4b7b2046c3635bce1adb15b6b2e57ff953e19859e09e7fa175c26af947007b13",
+      "num_uses": "hmac-sha256:14c2a85c94845dd7f7dc732bfb8b22a3fc656385a3ec3719b200bed85d1bd620",
+      "period": "hmac-sha256:4b7b2046c3635bce1adb15b6b2e57ff953e19859e09e7fa175c26af947007b13",
+      "policies": [
+        "hmac-sha256:16dbf81ef4fedededb08124edf79c8bab333b38cc38c807e7ddce0d87228f483"
+      ],
+      "renewable": true,
+      "ttl": "hmac-sha256:4b7b2046c3635bce1adb15b6b2e57ff953e19859e09e7fa175c26af947007b13",
+      "type": "hmac-sha256:475f69479b9dd7b73fb86d9286e521549da6f0ee4595c7b6c41196563f5972d7"
+    },
+    "remote_address": "127.0.0.1"
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  },
+  "response": {
+    "auth": {
+      "client_token": "hmac-sha256:4dc8dc084c5dfe6e78a03aa4ff6c58b67697442c808e0df9e1c1dbe8a749e7e2",
+      "accessor": "hmac-sha256:053dc16c736f2de85dd0b8b89226cf38062afc6e22eb2387689a8a248df34000",
+      "display_name": "token",
+      "policies": [
+        "default"
+      ],
+      "token_policies": [
+        "default"
+      ],
+      "token_type": "service"
+    }
+  }
+}
+
+
+
+★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★
+★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★
+★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★
+
+★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★
+★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★
+★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★
+
+■　Jake Lundberg' blog
+https://medium.com/hashicorp-engineering/essential-patterns-of-vault-part-2-b4d34976f1dc
+
+
+[r-user@c-test vault_essential_patterns_blog]$ ./4_enable_db.sh
+
+Running: ./4_enable_db.sh: Enable/configure database engine
+
+[r-user@c-test] vault secrets enable -path=db-blog database
+
+Success! Enabled the database secrets engine at: db-blog/
+
+Configure the account that Vault will use to manage credentials in Postgres.
+vault write db-blog/config/mother
+    plugin_name=postgresql-database-plugin
+    allowed_roles=*
+    connection_url="postgresql://{{username}}:{{password}}@172.18.1.104:5432/mother?sslmode=disable"
+    username="vault_admin"
+    password="notsosecure"
+
+[r-user@c-test]
+
+Configure the Vault/Postgres database roles with time bound credential templates
+
+There are 1m and 1h credential endpoints.  1m are great for demo'ing so you can see them expire
+
+Full read can be used by security teams to scan for credentials in any schema
+CREATION_STATEMENT=CREATE ROLE "{{name}}" WITH LOGIN PASSWORD '{{password}}' VALID UNTIL '{{expiration}}';
+  GRANT USAGE ON SCHEMA public,it,hr,security,finance,engineering TO "{{name}}";
+  GRANT SELECT ON ALL TABLES IN SCHEMA public,it,hr,security,finance,engineering TO "{{name}}";
+
+vault write db-blog/roles/mother-full-read-1m
+    db_name=mother
+    creation_statements="CREATE ROLE "{{name}}" WITH LOGIN PASSWORD '{{password}}' VALID UNTIL '{{expiration}}'; GRANT USAGE ON SCHEMA public,it,hr,security,finance,engineering TO "{{name}}"; GRANT SELECT ON ALL TABLES IN SCHEMA public,it,hr,security,finance,engineering TO "{{name}}";"
+    default_ttl=1m
+    max_ttl=24h
+
+[r-user@c-test]
+
+Success! Data written to: db-blog/roles/mother-full-read-1m
+
+CREATION_STATEMENT=CREATE ROLE "{{name}}" WITH LOGIN PASSWORD '{{password}}' VALID UNTIL '{{expiration}}';
+  GRANT USAGE ON SCHEMA public,it,hr,security,finance,engineering TO "{{name}}";
+  GRANT SELECT ON ALL TABLES IN SCHEMA public,it,hr,security,finance,engineering TO "{{name}}";
+
+vault write db-blog/roles/mother-full-read-1h
+    db_name=mother
+    creation_statements="CREATE ROLE "{{name}}" WITH LOGIN PASSWORD '{{password}}' VALID UNTIL '{{expiration}}'; GRANT USAGE ON SCHEMA public,it,hr,security,finance,engineering TO "{{name}}"; GRANT SELECT ON ALL TABLES IN SCHEMA public,it,hr,security,finance,engineering TO "{{name}}";"
+    default_ttl=1h
+    max_ttl=24h
+
+[r-user@c-test]
+
+Success! Data written to: db-blog/roles/mother-full-read-1h
+
+HR will be granted full access to their schema
+CREATION_STATEMENT=CREATE ROLE "{{name}}" WITH LOGIN PASSWORD '{{password}}' VALID UNTIL '{{expiration}}';
+GRANT USAGE ON SCHEMA hr TO "{{name}}";
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA hr TO "{{name}}";
+
+vault write db-blog/roles/mother-hr-full-1m
+    db_name=mother
+    creation_statements="CREATE ROLE "{{name}}" WITH LOGIN PASSWORD '{{password}}' VALID UNTIL '{{expiration}}'; GRANT USAGE ON SCHEMA hr TO "{{name}}"; GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA hr TO "{{name}}";"
+    default_ttl=1m
+    max_ttl=24h
+
+[r-user@c-test]
+
+Success! Data written to: db-blog/roles/mother-hr-full-1m
+
+CREATION_STATEMENT=CREATE ROLE "{{name}}" WITH LOGIN PASSWORD '{{password}}' VALID UNTIL '{{expiration}}';
+GRANT USAGE ON SCHEMA hr TO "{{name}}";
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA hr TO "{{name}}";
+
+vault write db-blog/roles/mother-hr-full-1h
+    db_name=mother
+    creation_statements="CREATE ROLE "{{name}}" WITH LOGIN PASSWORD '{{password}}' VALID UNTIL '{{expiration}}'; GRANT USAGE ON SCHEMA hr TO "{{name}}"; GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA hr TO "{{name}}";"
+    default_ttl=1h
+    max_ttl=24h
+
+[r-user@c-test]
+
+Success! Data written to: db-blog/roles/mother-hr-full-1h
+
+Engineering will be granted full access to their schema
+CREATION_STATEMENT=CREATE ROLE "{{name}}" WITH LOGIN PASSWORD '{{password}}' VALID UNTIL '{{expiration}}';
+GRANT USAGE ON SCHEMA engineering TO "{{name}}";
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA engineering TO "{{name}}";
+
+vault write db-blog/roles/mother-engineering-full-1m
+    db_name=mother
+    creation_statements="CREATE ROLE "{{name}}" WITH LOGIN PASSWORD '{{password}}' VALID UNTIL '{{expiration}}'; GRANT USAGE ON SCHEMA engineering TO "{{name}}"; GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA engineering TO "{{name}}";"
+    default_ttl=1m
+    max_ttl=24h
+
+[r-user@c-test]
+
+Success! Data written to: db-blog/roles/mother-engineering-full-1m
+
+CREATION_STATEMENT=CREATE ROLE "{{name}}" WITH LOGIN PASSWORD '{{password}}' VALID UNTIL '{{expiration}}';
+GRANT USAGE ON SCHEMA engineering TO "{{name}}";
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA engineering TO "{{name}}";
+
+vault write db-blog/roles/mother-engineering-full-1h
+    db_name=mother
+    creation_statements="CREATE ROLE "{{name}}" WITH LOGIN PASSWORD '{{password}}' VALID UNTIL '{{expiration}}'; GRANT USAGE ON SCHEMA engineering TO "{{name}}"; GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA engineering TO "{{name}}";"
+    default_ttl=1h
+    max_ttl=24h
+
+[r-user@c-test]
+
+Success! Data written to: db-blog/roles/mother-engineering-full-1h
+
+
+
+
+
+
+[r-user@c-test vault_essential_patterns_blog]$ ./5_enable_transit.sh
+
+Running: ./5_enable_transit.sh: Enable/configure the Transit Secret Engine (Encryption as a Service)
+
+[r-user@c-test] vault secrets enable -path=transit-blog transit
+
+Success! Enabled the transit secrets engine at: transit-blog/
+
+Create a transit key for the HR team.
+
+[r-user@c-test] vault write -f transit-blog/keys/hr
+
+Success! Data written to: transit-blog/keys/hr
+
+[r-user@c-test vault_essential_patterns_blog]$ vault read transit-blog/keys/hr
+Key                       Value
+---                       -----
+allow_plaintext_backup    false
+deletion_allowed          false
+derived                   false
+exportable                false
+keys                      map[1:1583742615]
+latest_version            1
+min_available_version     0
+min_decryption_version    1
+min_encryption_version    0
+name                      hr
+supports_decryption       true
+supports_derivation       true
+supports_encryption       true
+supports_signing          false
+type                      aes256-gcm96
+
+[r-user@c-test vault_essential_patterns_blog]$ vault list transit-blog/keys/
+Keys
+----
+hr
+
+[r-user@c-test vault_essential_patterns_blog]$ vault write transit-blog/encrypt/hr plaintext=$(base64 <<< "my secret data")
+Key           Value
+---           -----
+ciphertext    vault:v1:JPzqIYH5dfP490cem/ZzZFjwpwrHBFh53GZCM3WXl1UoqWPFk6xU7JVwBg==
+
+
+
+
+
+
+
+
+NOTE: The Distinguished Name (DN) is the unique identifier for LDAP/AD records. Try to use this to link up records as much as possible.
+
+“uniqueMember” attributes belong to an LDAP class: “groupOfUniqueNames” which in this LDAP directory are mapped under “ou=um_group,dc=ourcorp,dc=com”. We’ll match the DN of the user who is authenticating with Vault to any groups the user belongs to. In large LDAP/AD directories, these searches can be slower than looking up directly in a user’s attributes like with the memberOf overlay.
+
+“memberOf” is an operational attribute that belongs to the “person” objectClass. The current user will have one memberOf entry for any LDAP attribute whose value is equal to the user’s DN. These lookups are generally much faster.
+
+e.g.
+
+Group attribute/Distinguished Name mapping:
+
+“uniqueMember=cn=alice,ou=people,dc=ourcorp,dc=com” exists in groups
+
+    DN: cn=founders,ou=um_group,dc=ourcorp,dc=com
+    DN: cn=finance,ou=um_group,dc=ourcorp,dc=com
+
+So user record:
+
+DN: cn=alice,ou=people,dc=ourcorp,dc=com
+
+Will have the following entries
+
+    memberOf: cn=founders,ou=um_group,dc=ourcorp,dc=com
+    memberOf: cn=finance,ou=um_group,dc=ourcorp,dc=com
+
+Enable and configure LDAP for memberOf support.
+
+[r-user@c-test vault_essential_patterns_blog]$ ./6_enable_ldap_auth.sh
+
+Running: ./6_enable_ldap_auth.sh: Enable and Configure the LDAP Auth Method
+
+[r-user@c-test] vault auth enable -path=ldap-um ldap
+
+Success! Enabled ldap auth method at: ldap-um/
+
+
+[r-user@c-test] vault auth enable -path=ldap-mo ldap
+
+Success! Enabled ldap auth method at: ldap-mo/
+
+Configure Unique Member group lookups
+vault write auth/ldap-um/config
+    url="ldap://172.18.1.104"
+    binddn="cn=read-only,dc=ourcorp,dc=com"
+    bindpass="devsecopsFTW"
+    userdn="ou=people,dc=ourcorp,dc=com"
+    userattr="cn"
+    groupdn="ou=um_group,dc=ourcorp,dc=com"
+    groupfilter="(&(objectClass=groupOfUniqueNames)(uniqueMember={{.UserDN}}))"
+    groupattr="cn"
+    insecure_tls=true
+
+[r-user@c-test]
+
+Success! Data written to: auth/ldap-um/config
+
+Configure MemberOf group lookups
+vault write auth/ldap-mo/config
+    url="ldap://172.18.1.104"
+    binddn="cn=read-only,dc=ourcorp,dc=com"
+    bindpass="devsecopsFTW"
+    userdn="ou=people,dc=ourcorp,dc=com"
+    userattr="cn"
+    groupdn="ou=people,dc=ourcorp,dc=com"
+    groupfilter="(&(objectClass=person)(uid={{.Username}}))"
+    groupattr="memberOf"
+    insecure_tls=true
+
+[r-user@c-test]
+
+Success! Data written to: auth/ldap-mo/config
+
+
+
+[r-user@c-test vault_essential_patterns_blog]$ ./7_generate_dynamic_policy.sh
+
+Running: ./7_generate_dynamic_policy.sh: Generating a dynamic policy
+Generating a dynamic policy under policies/kv-user-template-policy.hcl.  This needs to be done because the ACL templates need to know the local LDAP auth method accessors
+
+[r-user@c-test] vault policy write kv-user-template policies/kv-user-template-policy.hcl
+
+Success! Uploaded policy: kv-user-template
+
+[r-user@c-test vault_essential_patterns_blog]$ vault policy read kv-user-template
+# Allow full access to the current version of the kv-blog
+path "kv-blog/data/{{identity.entity.aliases.auth_ldap_8a7d696a.name}}/*"
+{
+  capabilities = ["create", "read", "update", "delete", "list"]
+}
+
+path "kv-blog/data/{{identity.entity.aliases.auth_ldap_8a7d696a.name}}"
+{
+  capabilities = ["create", "read", "update", "delete", "list"]
+}
+
+
+# Allow deletion of any kv-blog version
+path "kv-blog/delete/{{identity.entity.aliases.auth_ldap_8a7d696a.name}}/*"
+{
+  capabilities = ["update"]
+}
+
+path "kv-blog/delete/{{identity.entity.aliases.auth_ldap_8a7d696a.name}}"
+{
+  capabilities = ["update"]
+}
+
+# Allow un-deletion of any kv-blog version
+path "kv-blog/undelete/{{identity.entity.aliases.auth_ldap_8a7d696a.name}}/*"
+{
+  capabilities = ["update"]
+}
+
+path "kv-blog/undelete/{{identity.entity.aliases.auth_ldap_8a7d696a.name}}"
+{
+  capabilities = ["update"]
+}
+
+# Allow destroy of any kv-blog version
+path "kv-blog/destroy/{{identity.entity.aliases.auth_ldap_8a7d696a.name}}/*"
+{
+  capabilities = ["update"]
+}
+
+path "kv-blog/destroy/{{identity.entity.aliases.auth_ldap_8a7d696a.name}}"
+{
+  capabilities = ["update"]
+}
+# Allow list and view of metadata and to delete all versions and metadata for a key
+path "kv-blog/metadata/{{identity.entity.aliases.auth_ldap_8a7d696a.name}}/*"
+{
+  capabilities = ["list", "read", "delete"]
+}
+
+path "kv-blog/metadata/{{identity.entity.aliases.auth_ldap_8a7d696a.name}}"
+{
+  capabilities = ["list", "read", "delete"]
+}
+
+# Allow full access to the current version of the kv-blog
+path "kv-blog/data/{{identity.entity.aliases.auth_ldap_67eec4dd.name}}/*"
+{
+  capabilities = ["create", "read", "update", "delete", "list"]
+}
+
+path "kv-blog/data/{{identity.entity.aliases.auth_ldap_67eec4dd.name}}"
+{
+  capabilities = ["create", "read", "update", "delete", "list"]
+}
+
+
+# Allow deletion of any kv-blog version
+path "kv-blog/delete/{{identity.entity.aliases.auth_ldap_67eec4dd.name}}/*"
+{
+  capabilities = ["update"]
+}
+
+path "kv-blog/delete/{{identity.entity.aliases.auth_ldap_67eec4dd.name}}"
+{
+  capabilities = ["update"]
+}
+
+# Allow un-deletion of any kv-blog version
+path "kv-blog/undelete/{{identity.entity.aliases.auth_ldap_67eec4dd.name}}/*"
+{
+  capabilities = ["update"]
+}
+
+path "kv-blog/undelete/{{identity.entity.aliases.auth_ldap_67eec4dd.name}}"
+{
+  capabilities = ["update"]
+}
+
+# Allow destroy of any kv-blog version
+path "kv-blog/destroy/{{identity.entity.aliases.auth_ldap_67eec4dd.name}}/*"
+{
+  capabilities = ["update"]
+}
+
+path "kv-blog/destroy/{{identity.entity.aliases.auth_ldap_67eec4dd.name}}"
+{
+  capabilities = ["update"]
+}
+# Allow list and view of metadata and to delete all versions and metadata for a key
+path "kv-blog/metadata/{{identity.entity.aliases.auth_ldap_67eec4dd.name}}/*"
+{
+  capabilities = ["list", "read", "delete"]
+}
+
+path "kv-blog/metadata/{{identity.entity.aliases.auth_ldap_67eec4dd.name}}"
+{
+  capabilities = ["list", "read", "delete"]
+}
+
+
+
+
+
+
+
+
+[r-user@c-test vault_essential_patterns_blog]$ ./8_create_policies.sh
+
+Running: ./8_create_policies.sh: Creating Policies
+
+[r-user@c-test] vault policy write kv-it policies/kv-it-policy.hcl
+
+Success! Uploaded policy: kv-it
+
+
+[r-user@c-test] vault policy write db-full-read policies/db-full-read-policy.hcl
+
+Success! Uploaded policy: db-full-read
+
+
+[r-user@c-test] vault policy write db-engineering policies/db-engineering-policy.hcl
+
+Success! Uploaded policy: db-engineering
+
+
+[r-user@c-test] vault policy write db-hr policies/db-hr-policy.hcl
+
+Success! Uploaded policy: db-hr
+
+
+[r-user@c-test] vault policy write transit-hr policies/transit-hr-policy.hcl
+
+Success! Uploaded policy: transit-hr
+
+
+
+
+[r-user@c-test vault_essential_patterns_blog]$ vault policy list
+autounseal
+db-engineering
+db-full-read
+db-hr
+default
+kv-it
+kv-user-template
+testpolicy
+transit-hr
+root
+[r-user@c-test vault_essential_patterns_blog]$ vault policy read kv-it
+# KV V2 Blanket Policies:
+
+# Allow full access to the current version of the kv-blog
+path "kv-blog/data/it/*"
+{
+  capabilities = ["create", "read", "update", "delete", "list"]
+}
+
+path "kv-blog/data/it"
+{
+  capabilities = ["create", "read", "update", "delete", "list"]
+}
+
+
+# Allow deletion of any kv-blog version
+path "kv-blog/delete/it/*"
+{
+  capabilities = ["update"]
+}
+
+path "kv-blog/delete/it"
+{
+  capabilities = ["update"]
+}
+
+# Allow un-deletion of any kv-blog version
+path "kv-blog/undelete/it/*"
+{
+  capabilities = ["update"]
+}
+
+path "kv-blog/undelete/it"
+{
+  capabilities = ["update"]
+}
+
+# Allow destroy of any kv-blog version
+path "kv-blog/destroy/it/*"
+{
+  capabilities = ["update"]
+}
+
+path "kv-blog/destroy/it"
+{
+  capabilities = ["update"]
+}
+# Allow list and view of metadata and to delete all versions and metadata for a key
+path "kv-blog/metadata/it/*"
+{
+  capabilities = ["list", "read", "delete"]
+}
+
+path "kv-blog/metadata/it"
+{
+  capabilities = ["list", "read", "delete"]
+}
+
+It’s giving full rights to the secrets in the kv-blog/it path in Vault. “Data” and “delete” paths here are operation paths for the KV V2 engine and need to be expressed directly. 
+
+
+
+
+ACL Templated Policies，下面是ACL templating的例子，它允许任何用户都可以管理kv-blog/data/$(LDAP_USERNAME)下的secrets：
+[r-user@c-test vault_essential_patterns_blog]$ more ./policies/kv-user-template-policy.hcl
+# Allow full access to the current version of the kv-blog
+path "kv-blog/data/{{identity.entity.aliases.auth_ldap_8a7d696a.name}}/*"
+{
+  capabilities = ["create", "read", "update", "delete", "list"]
+}
+
+path "kv-blog/data/{{identity.entity.aliases.auth_ldap_8a7d696a.name}}"
+{
+  capabilities = ["create", "read", "update", "delete", "list"]
+}
+。。。。。。
+
+Notice the mount accessor identifier in the policy template. This means that when creating ACL templated policies, you have to do so after mounting your Authentication Methods. See 7_generate_dynamic_policy.sh for an example of how to do this.
+
+[r-user@c-test vault_essential_patterns_blog]$ more 7_generate_dynamic_policy.sh
+. env.sh
+
+echo
+cyan "Running: $0: Generating a dynamic policy"
+UM_ACCESS=$(vault auth list -format=json | jq -r '.["ldap-um/"].accessor')
+MO_ACCESS=$(vault auth list -format=json | jq -r '.["ldap-mo/"].accessor')
+
+green "Generating a dynamic policy under policies/kv-user-template-policy.hcl.  This needs to be don
+e because the ACL templates need to know the local LDAP auth method accessors"
+
+cat > policies/kv-user-template-policy.hcl << EOF
+# Allow full access to the current version of the kv-blog
+path "kv-blog/data/{{identity.entity.aliases.${UM_ACCESS}.name}}/*"
+{
+  capabilities = ["create", "read", "update", "delete", "list"]
+}
+
+path "kv-blog/data/{{identity.entity.aliases.${UM_ACCESS}.name}}"
+{
+  capabilities = ["create", "read", "update", "delete", "list"]
+}
+
+
+# Allow deletion of any kv-blog version
+path "kv-blog/delete/{{identity.entity.aliases.${UM_ACCESS}.name}}/*"
+{
+  capabilities = ["update"]
+}
+
+path "kv-blog/delete/{{identity.entity.aliases.${UM_ACCESS}.name}}"
+{
+  capabilities = ["update"]
+}
+
+# Allow un-deletion of any kv-blog version
+path "kv-blog/undelete/{{identity.entity.aliases.${UM_ACCESS}.name}}/*"
+{
+  capabilities = ["update"]
+}
+
+path "kv-blog/undelete/{{identity.entity.aliases.${UM_ACCESS}.name}}"
+{
+  capabilities = ["update"]
+}
+
+# Allow destroy of any kv-blog version
+path "kv-blog/destroy/{{identity.entity.aliases.${UM_ACCESS}.name}}/*"
+{
+  capabilities = ["update"]
+}
+
+path "kv-blog/destroy/{{identity.entity.aliases.${UM_ACCESS}.name}}"
+{
+  capabilities = ["update"]
+}
+# Allow list and view of metadata and to delete all versions and metadata for a key
+path "kv-blog/metadata/{{identity.entity.aliases.${UM_ACCESS}.name}}/*"
+{
+  capabilities = ["list", "read", "delete"]
+}
+
+path "kv-blog/metadata/{{identity.entity.aliases.${UM_ACCESS}.name}}"
+{
+  capabilities = ["list", "read", "delete"]
+}
+
+# Allow full access to the current version of the kv-blog
+path "kv-blog/data/{{identity.entity.aliases.${MO_ACCESS}.name}}/*"
+{
+  capabilities = ["create", "read", "update", "delete", "list"]
+}
+
+path "kv-blog/data/{{identity.entity.aliases.${MO_ACCESS}.name}}"
+{
+  capabilities = ["create", "read", "update", "delete", "list"]
+}
+
+
+# Allow deletion of any kv-blog version
+path "kv-blog/delete/{{identity.entity.aliases.${MO_ACCESS}.name}}/*"
+{
+  capabilities = ["update"]
+}
+
+path "kv-blog/delete/{{identity.entity.aliases.${MO_ACCESS}.name}}"
+{
+  capabilities = ["update"]
+}
+
+# Allow un-deletion of any kv-blog version
+path "kv-blog/undelete/{{identity.entity.aliases.${MO_ACCESS}.name}}/*"
+{
+  capabilities = ["update"]
+}
+
+path "kv-blog/undelete/{{identity.entity.aliases.${MO_ACCESS}.name}}"
+{
+  capabilities = ["update"]
+}
+
+# Allow destroy of any kv-blog version
+path "kv-blog/destroy/{{identity.entity.aliases.${MO_ACCESS}.name}}/*"
+{
+  capabilities = ["update"]
+}
+
+path "kv-blog/destroy/{{identity.entity.aliases.${MO_ACCESS}.name}}"
+{
+  capabilities = ["update"]
+}
+# Allow list and view of metadata and to delete all versions and metadata for a key
+path "kv-blog/metadata/{{identity.entity.aliases.${MO_ACCESS}.name}}/*"
+{
+  capabilities = ["list", "read", "delete"]
+}
+
+path "kv-blog/metadata/{{identity.entity.aliases.${MO_ACCESS}.name}}"
+{
+  capabilities = ["list", "read", "delete"]
+}
+EOF
+
+pe "vault policy write kv-user-template policies/kv-user-template-policy.hcl"
+=================
+7_generate_dynamic_policy.sh 结束
+
+
+
+
+摘抄一下对ACL Templating的解释：
+The only way to specify non-static paths in ACL policies was to use globs (*) at the end of paths. Or, use plus-sign (+) for a single directory wildcard matching.
+path "transit/keys/*" {
+  capabilities = [ "read" ]
+}
+
+path "secret/+/apikey" {
+  capabilities = [ "create", "read", "update", "delete", "list" ]
+}
+This makes many management and delegation tasks challenging. For example, allowing a user to change their own password by invoking the auth/userpass/users/<user_name>/password endpoint can require either a policy for every user or requires the use of Sentinel which is a part of Vault Enterprise.
+Solution：
+As of Vault 0.11, ACL templating capability is available to allow a subset of user information to be used within ACL policy paths.
+This policy allows users to change their own password given that the username and password are defined in the userpass auth method. The mount accessor value (auth_userpass_6671d643 in this example) can be read from the sys/auth endpoint.
+path "auth/userpass/users/{{identity.entity.aliases.auth_userpass_6671d643.name}}" {
+  capabilities = [ "update" ]
+  allowed_parameters = {
+    "password" = []
+  }
+}
+参考：
+[r-user@c-test ~]$ vault auth list
+Path         Type        Accessor                  Description
+----         ----        --------                  -----------
+approle/     approle     auth_approle_f02e7bec     n/a
+ldap-mo/     ldap        auth_ldap_67eec4dd        n/a
+ldap-um/     ldap        auth_ldap_8a7d696a        n/a
+token/       token       auth_token_bde75e77       token based credentials
+userpass/    userpass    auth_userpass_b8272cc7    n/a
+
+
+
+
+
+[r-user@c-test vault_essential_patterns_blog]$ ./9_associate_policies.sh
+
+Running: ./9_associate_policies.sh: Associating Policies with Authentication Methods
+Setup Unique Member group logins for LDAP.   These can use alias names when logging in
+
+
+[r-user@c-test] vault write auth/ldap-um/groups/it policies=kv-it,kv-user-template
+
+Success! Data written to: auth/ldap-um/groups/it
+
+
+[r-user@c-test] vault write auth/ldap-um/groups/security policies=db-full-read,kv-user-template
+
+Success! Data written to: auth/ldap-um/groups/security
+
+Setup MemberOf group logins for LDAP.   Need to use the entire DN for the group here as these are in the user's attributes
+
+
+[r-user@c-test] vault write auth/ldap-mo/groups/hr policies=db-hr,transit-hr,kv-user-template
+
+Success! Data written to: auth/ldap-mo/groups/hr
+
+
+[r-user@c-test] vault write auth/ldap-mo/groups/engineering policies=db-engineering,kv-user-template
+
+Success! Data written to: auth/ldap-mo/groups/engineering
+
+Notice the difference between the two records? One is a uniqueMember lookup while the other is a memberOf lookup. While memberOf group names are longer, they are also unique because they reference the full DN, not just an alias name.
+
+
+
+
+
+
+
+
+
+
+
+
+[r-user@c-test vault_essential_patterns_blog]$ ./test_it.sh
+Running: ./test_it.sh: Testing IT requirements
+Unset VAULT_TOKEN so we don't accidentally carry over the root token
+
+[r-user@c-test] unset VAULT_TOKEN
+
+
+
+[r-user@c-test] vault login -method=ldap -path=ldap-um username=deepak password=thispasswordsucks
+
+Success! You are now authenticated. The token information displayed below
+is already stored in the token helper. You do NOT need to run "vault login"
+again. Future Vault requests will automatically use this token.
+
+Key                    Value
+---                    -----
+token                  s.DGhLp8g26jeDHF6Ky3xLPB7z
+token_accessor         GvZpzVpbRlKpjA0NAgGGnmCR
+token_duration         768h
+token_renewable        true
+token_policies         ["default" "kv-it" "kv-user-template"]
+identity_policies      []
+policies               ["default" "kv-it" "kv-user-template"]
+token_meta_username    deepak
+
+Test KV puts to allowed paths
+
+[r-user@c-test] vault kv put kv-blog/it/servers/hr/root password=rootntootn
+
+Key              Value
+---              -----
+created_time     2020-03-10T01:11:04.005696802Z
+deletion_time    n/a
+destroyed        false
+version          1
+
+
+[r-user@c-test] vault kv put kv-blog/it/routers/snmp/read-write password=snortymcsnortyton
+
+Key              Value
+---              -----
+created_time     2020-03-10T01:11:18.85611283Z
+deletion_time    n/a
+destroyed        false
+version          1
+
+This is allowed via an ACL templated path!
+
+[r-user@c-test] vault kv put kv-blog/deepak/email password=doesntlooklikeanythingtome
+
+Key              Value
+---              -----
+created_time     2020-03-10T01:11:29.400336446Z
+deletion_time    n/a
+destroyed        false
+version          1
+
+Test KV gets to allowed paths
+
+[r-user@c-test] vault kv get kv-blog/it/servers/hr/root
+
+====== Metadata ======
+Key              Value
+---              -----
+created_time     2020-03-10T01:11:04.005696802Z
+deletion_time    n/a
+destroyed        false
+version          1
+
+====== Data ======
+Key         Value
+---         -----
+password    rootntootn
+
+
+[r-user@c-test] vault kv get kv-blog/it/routers/snmp/read-write
+
+====== Metadata ======
+Key              Value
+---              -----
+created_time     2020-03-10T01:11:18.85611283Z
+deletion_time    n/a
+destroyed        false
+version          1
+
+====== Data ======
+Key         Value
+---         -----
+password    snortymcsnortyton
+
+
+[r-user@c-test] vault kv get kv-blog/deepak/email
+
+====== Metadata ======
+Key              Value
+---              -----
+created_time     2020-03-10T01:11:29.400336446Z
+deletion_time    n/a
+destroyed        false
+version          1
+
+====== Data ======
+Key         Value
+---         -----
+password    doesntlooklikeanythingtome
+
+Negative Tests. Expect failures
+
+Test KV gets to disallowed paths
+
+[r-user@c-test] vault kv get kv-blog/hr/servers/hr/root
+
+Error reading kv-blog/data/hr/servers/hr/root: Error making API request.
+
+URL: GET http://172.18.1.104:8200/v1/kv-blog/data/hr/servers/hr/root
+Code: 403. Errors:
+
+* 1 error occurred:
+        * permission denied
+
+
+
+
+[r-user@c-test] vault kv get kv-blog/hr/routers/snmp/read-write
+
+Error reading kv-blog/data/hr/routers/snmp/read-write: Error making API request.
+
+URL: GET http://172.18.1.104:8200/v1/kv-blog/data/hr/routers/snmp/read-write
+Code: 403. Errors:
+
+* 1 error occurred:
+        * permission denied
+
+
+
+Test KV puts to disallowed paths
+
+[r-user@c-test] vault kv put kv-blog/hr/servers/hr/root password=rootntootn
+
+Error writing data to kv-blog/data/hr/servers/hr/root: Error making API request.
+
+URL: PUT http://172.18.1.104:8200/v1/kv-blog/data/hr/servers/hr/root
+Code: 403. Errors:
+
+* 1 error occurred:
+        * permission denied
+
+
+
+
+[r-user@c-test] vault kv put kv-blog/hr/routers/snmp/read-write password=snortymcsnortyton
+
+Error writing data to kv-blog/data/hr/routers/snmp/read-write: Error making API request.
+
+URL: PUT http://172.18.1.104:8200/v1/kv-blog/data/hr/routers/snmp/read-write
+Code: 403. Errors:
+
+* 1 error occurred:
+        * permission denied
+
+
+
+Check against another user's path controlled by ACL templating
+
+[r-user@c-test] vault kv put kv-blog/alice/email password=doesntlooklikeanythingtome
+
+Error writing data to kv-blog/data/alice/email: Error making API request.
+
+URL: PUT http://172.18.1.104:8200/v1/kv-blog/data/alice/email
+Code: 403. Errors:
+
+* 1 error occurred:
+        * permission denied
+
+
+
+Test access to database endpoints
+
+[r-user@c-test] vault read db-blog/creds/mother-full-read-1m
+
+Error reading db-blog/creds/mother-full-read-1m: Error making API request.
+
+URL: GET http://172.18.1.104:8200/v1/db-blog/creds/mother-full-read-1m
+Code: 403. Errors:
+
+* 1 error occurred:
+        * permission denied
+
+
+
+
+
+
+
+
+使用docker的数据库之前，docker权限需要先进行调整：
+[r-user@c-test vault_essential_patterns_blog]$ docker run hello-world
+docker: Got permission denied while trying to connect to the Docker daemon socket at unix:///var/run/docker.sock: Post http://%2Fvar%2Frun%2Fdocker.sock/v1.40/containers/create: dial unix /var/run/docker.sock: connect: permission denied.
+See 'docker run --help'.
+[r-user@c-test vault_essential_patterns_blog]$ ll /var/run/docker.sock
+srw-rw---- 1 root docker 0 Mar  9 12:53 /var/run/docker.sock
+[r-user@c-test vault_essential_patterns_blog]$ grep -i docker /etc/group
+docker:x:991:
+[r-user@c-test vault_essential_patterns_blog]$ sudo gpasswd -a r-user docker
+Adding user r-user to group docker
+[r-user@c-test vault_essential_patterns_blog]$ grep -i docker /etc/group
+docker:x:991:r-user
+[r-user@c-test vault_essential_patterns_blog]$ exit
+logout
+Connection to 172.18.1.104 closed.
+[r-user@test-vm ~]$ ssh -i sample-key-001.pem r-user@172.18.1.104
+Last login: Tue Mar 10 09:15:24 2020 from 172.18.1.107
+-----
+CentOS Linux release 7.6.1810 (Core)
+Linux 3.10.0-957.12.2.el7.x86_64 x86_64
+
+To run a command as administrator (user root), please use sudo <command>.
+-----
+[r-user@c-test ~]$ docker run hello-world
+Unable to find image 'hello-world:latest' locally
+latest: Pulling from library/hello-world
+1b930d010525: Pull complete
+Digest: sha256:fc6a51919cfeb2e6763f62b6d9e8815acbf7cd2e476ea353743570610737b752
+Status: Downloaded newer image for hello-world:latest
+
+Hello from Docker!
+This message shows that your installation appears to be working correctly.
+
+To generate this message, Docker took the following steps:
+ 1. The Docker client contacted the Docker daemon.
+ 2. The Docker daemon pulled the "hello-world" image from the Docker Hub.
+    (amd64)
+ 3. The Docker daemon created a new container from that image which runs the
+    executable that produces the output you are currently reading.
+ 4. The Docker daemon streamed that output to the Docker client, which sent it
+    to your terminal.
+
+To try something more ambitious, you can run an Ubuntu container with:
+ $ docker run -it ubuntu bash
+
+Share images, automate workflows, and more with a free Docker ID:
+ https://hub.docker.com/
+
+For more examples and ideas, visit:
+ https://docs.docker.com/get-started/
+
+
+
+
+
+
+[r-user@c-test vault_essential_patterns_blog]$ ./test_engineering.sh
+
+Running: ./test_engineering.sh: Testing Engineering requirements
+Logging in with the memberOf overlay, notice the path difference
+Ensure the root token isn't being used
+
+[r-user@c-test] unset VAULT_TOKEN
+
+
+
+[r-user@c-test] vault login -method=ldap -path=ldap-mo username=chun password=thispasswordsucks
+
+Success! You are now authenticated. The token information displayed below
+is already stored in the token helper. You do NOT need to run "vault login"
+again. Future Vault requests will automatically use this token.
+
+Key                    Value
+---                    -----
+token                  s.w8Pp9wVoGU28xUiViqtyRus4
+token_accessor         zLIlm6ksdir1nQyXKVDJESkU
+token_duration         768h
+token_renewable        true
+token_policies         ["db-engineering" "default" "kv-user-template"]
+identity_policies      []
+policies               ["db-engineering" "default" "kv-user-template"]
+token_meta_username    chun
+
+Read out the dynamic DB credentials and store them as variables
+
+Getting dynamic db credentials from Vault. There are more elegant ways of doing this, but OSX doesn't support process substitution in its version of Bash, so working around (e.g. source <(cmd))
+
+
+注意这里我们用LDAP的方式登录账号并且获得对应的policy所规定的权限（再上面的it登录也是同样的），同时得到token。那么不适用LDAP这种auth方式，直接用token方式也可以得到权限：
+vault token create -policy="xxx"
+or
+vault write auth/token/create policies=xxx
+所以token方式进行auth是很危险的一种操作，这个权限应该对最终客户是禁止的。
+
+
+
+
+[r-user@c-test] vault read -format=json db-blog/creds/mother-engineering-full-1h | jq -r '.data | .["PGUSER"] = .username | .["PGPASSWORD"] = .password | del(.username, .password) | to_entries | .[] | .key + "=" + .value ' > .temp_db_creds
+通过这个命令vault会去找数据库生成一个动态的credential，然后把相关参数写入命令最后的那个文件中。
+这个操作方式就是所谓的“Secrets as a Service”。
+
+
+[r-user@c-test] . .temp_db_creds && rm .temp_db_creds
+
+
+By setting the postgres environment variables to the dynamic creds, we can run PSQL with those dynamic creds
+
+[r-user@c-test] export PGUSER=v-ldap-mo--mother-e-RkVsMgBa00mRa4InWsnh-1583804299 PGPASSWORD=A1a-TLS2HRKaYAVjlcWB
+
+
+Turn off globbing for the database query in an environment variable
+
+[r-user@c-test] set -o noglob
+
+
+
+[r-user@c-test] QUERY='select name,description from engineering.catalog;'
+
+
+
+[r-user@c-test] psql
+
+       name        |                description
+-------------------+-------------------------------------------
+ Thromdibulator    | Complex machine, do not disassemble
+ Visi-Sonor        | Musical instrument with visualizations
+ Deep Thought      | Super Computer
+ Mithril Vest      | Very Good Armor (TM)
+ Blaine the Mono   | Psychopathic train, enjoys proper riddles
+ Millennium Falcon | Fastest Hunk-of-Junk in the Galaxy
+ Sonic Screwdriver | Multi-tool
+(7 rows)
+
+
+Use the dynamic ACL policy to write to a KV location under this user name
+
+[r-user@c-test] vault kv put kv-blog/chun/passwords laptop=legleglegleg cameras=bigbagofnope
+
+Key              Value
+---              -----
+created_time     2020-03-10T01:38:25.3798821Z
+deletion_time    n/a
+destroyed        false
+version          3
+
+
+[r-user@c-test] vault kv get kv-blog/chun/passwords
+
+====== Metadata ======
+Key              Value
+---              -----
+created_time     2020-03-10T01:38:25.3798821Z
+deletion_time    n/a
+destroyed        false
+version          3
+
+===== Data =====
+Key        Value
+---        -----
+cameras    bigbagofnope
+laptop     legleglegleg
+
+Negative Tests. Expect failures
+Can these credentials be used to query the HR schema?
+
+[r-user@c-test] QUERY='select * from hr.people;'
+
+
+
+[r-user@c-test] psql
+
+ERROR:  permission denied for schema hr
+LINE 1: select * from hr.people;
+                      ^
+
+Can the Vault token read from other areas?
+
+[r-user@c-test] vault read db-blog/creds/mother-full-read-1h
+
+Error reading db-blog/creds/mother-full-read-1h: Error making API request.
+
+URL: GET http://172.18.1.104:8200/v1/db-blog/creds/mother-full-read-1h
+Code: 403. Errors:
+
+* 1 error occurred:
+        * permission denied
+
+
+
+
+[r-user@c-test] vault kv get kv-blog/it/servers/hr/root
+
+Error reading kv-blog/data/it/servers/hr/root: Error making API request.
+
+URL: GET http://172.18.1.104:8200/v1/kv-blog/data/it/servers/hr/root
+Code: 403. Errors:
+
+* 1 error occurred:
+        * permission denied
+
+
+
+
+
+
+
+HR Dynamic DB and transit tests
+[r-user@c-test vault_essential_patterns_blog]$ ./test_hr.sh
+
+Running: ./test_hr.sh: Testing HR requirements
+Logging in with the memberOf overlay, notice the path difference
+Ensure the root token isn't being used
+
+[r-user@c-test] unset VAULT_TOKEN
+
+
+
+[r-user@c-test] vault login -method=ldap -path=ldap-mo username=frank password=thispasswordsucks
+
+Success! You are now authenticated. The token information displayed below
+is already stored in the token helper. You do NOT need to run "vault login"
+again. Future Vault requests will automatically use this token.
+
+Key                    Value
+---                    -----
+token                  s.xCGsapJ4GeRCM8mZHIWW44qb
+token_accessor         vgP0hIwyBU9vrs1PQIFa4kJT
+token_duration         768h
+token_renewable        true
+token_policies         ["db-hr" "default" "kv-user-template" "transit-hr"]
+identity_policies      []
+policies               ["db-hr" "default" "kv-user-template" "transit-hr"]
+token_meta_username    frank
+
+Read out the dynamic DB credentials and store them as variables
+
+Getting dynamic db credentials from Vault. There are more elegant ways of doing this, but this shows the process well
+
+[r-user@c-test] vault read -format=json db-blog/creds/mother-hr-full-1h | jq -r '.data | .["PGUSER"] = .username | .["PGPASSWORD"] = .password | del(.username, .password) | to_entries | .[] | .key + "=" + .value ' > .temp_db_creds
+
+
+
+[r-user@c-test] . .temp_db_creds && rm .temp_db_creds
+
+
+By setting the postgres environment variables to the dynamic creds, we can run PSQL with those dynamic creds
+
+[r-user@c-test] export PGUSER=v-ldap-mo--mother-h-p6ERbOuLzHNjoS3OZyBv-1583804533 PGPASSWORD=A1a-0V2JJW3NAKfwdxYy
+
+
+Turn off globbing for the database query in an environment variable so it doesn't pick up file names instead
+
+[r-user@c-test] set -o noglob
+
+
+
+[r-user@c-test] QUERY='select email,id from hr.people;'
+
+
+
+[r-user@c-test] psql
+
+       email        |         id
+--------------------+--------------------
+ alice@ourcorp.com  | 123-45-6789
+ bob@ourcorp.com    | 234-56-7890
+ chun@ourcorp.com   | 350322197001015332
+ deepak@ourcorp.com | 0123 4567 8901
+ eve@ourcorp.com    | AB 12 34 56 Z
+ frank@ourcorp.com  | 678-90-1234
+(6 rows)
+
+
+Find an existing user id and encrypt it
+WARNING!   When doing this in production, it's best to schedule a maintenance window unless your application logic can consume both encrypted and unencrypted values
+
+
+[r-user@c-test] QUERY="select id from hr.people where email='alice@ourcorp.com'"
+
+
+
+[r-user@c-test] user_id=$(psql)
+
+
+user_id = 123-45-6789
+
+[r-user@c-test] enc_id=$(vault write -field=ciphertext transit-blog/encrypt/hr plaintext=$( base64 <<< ${user_id} ) )
+
+插播一个批注：
+transit secrets engine所支持的key type包括：
+As of now, the transit secrets engine supports the following key types (all key types also generate separate HMAC keys):
+
+    aes128-gcm96: AES-GCM with a 128-bit AES key and a 96-bit nonce; supports encryption, decryption, key derivation, and convergent encryption
+    aes256-gcm96: AES-GCM with a 256-bit AES key and a 96-bit nonce; supports encryption, decryption, key derivation, and convergent encryption (default)
+    chacha20-poly1305: ChaCha20-Poly1305 with a 256-bit key; supports encryption, decryption, key derivation, and convergent encryption
+    ed25519: Ed25519; supports signing, signature verification, and key derivation
+    ecdsa-p256: ECDSA using curve P-256; supports signing and signature verification
+    ecdsa-p384: ECDSA using curve P-384; supports signing and signature verification
+    ecdsa-p521: ECDSA using curve P-521; supports signing and signature verification
+    rsa-2048: 2048-bit RSA key; supports encryption, decryption, signing, and signature verification
+    rsa-4096: 4096-bit RSA key; supports encryption, decryption, signing, and signature verification
+
+
+[r-user@c-test] QUERY="UPDATE hr.people SET id='${enc_id}' WHERE email='alice@ourcorp.com'"
+
+
+
+[r-user@c-test] psql
+
+UPDATE 1
+
+
+[r-user@c-test] QUERY="select email,id from hr.people"
+
+
+
+[r-user@c-test] psql
+
+       email        |                                id
+--------------------+-------------------------------------------------------------------
+ bob@ourcorp.com    | 234-56-7890
+ chun@ourcorp.com   | 350322197001015332
+ deepak@ourcorp.com | 0123 4567 8901
+ eve@ourcorp.com    | AB 12 34 56 Z
+ frank@ourcorp.com  | 678-90-1234
+ alice@ourcorp.com  | vault:v1:z9hSiyKIv9ojajKquJTCP2kAUq0uwoTmlHUgA3n7nAOzsb6pVYXyazU=
+(6 rows)
+
+
+This is the process your applications will use when data is encrypted with Vault
+
+[r-user@c-test] QUERY="select id from hr.people where email='alice@ourcorp.com'"
+
+
+
+[r-user@c-test] enc_user_id=$(psql)
+
+
+enc_user_id = vault:v1:z9hSiyKIv9ojajKquJTCP2kAUq0uwoTmlHUgA3n7nAOzsb6pVYXyazU=
+
+[r-user@c-test] user_id=$(vault write -field=plaintext transit-blog/decrypt/hr ciphertext=${enc_user_id} | base64 --decode)
+
+
+
+[r-user@c-test] echo ${user_id}
+
+123-45-6789
+
+Notice the value is still encrypted in the database.   It should only decrypted by your applications when needed to be displayed
+
+[r-user@c-test] QUERY="select email,id from hr.people"
+
+
+
+[r-user@c-test] psql
+
+       email        |                                id
+--------------------+-------------------------------------------------------------------
+ bob@ourcorp.com    | 234-56-7890
+ chun@ourcorp.com   | 350322197001015332
+ deepak@ourcorp.com | 0123 4567 8901
+ eve@ourcorp.com    | AB 12 34 56 Z
+ frank@ourcorp.com  | 678-90-1234
+ alice@ourcorp.com  | vault:v1:z9hSiyKIv9ojajKquJTCP2kAUq0uwoTmlHUgA3n7nAOzsb6pVYXyazU=
+(6 rows)
+
+
+
+Negative Tests. Expect failures
+Try to query the engineering schema from here.
+
+[r-user@c-test] QUERY="select * from engineering.catalog"
+
+
+
+[r-user@c-test] psql
+
+ERROR:  permission denied for schema engineering
+LINE 1: select * from engineering.catalog
+                      ^
+
+Can the Vault token read from other areas?
+
+[r-user@c-test] vault read db-blog/creds/mother-full-read-1h
+
+Error reading db-blog/creds/mother-full-read-1h: Error making API request.
+
+URL: GET http://172.18.1.104:8200/v1/db-blog/creds/mother-full-read-1h
+Code: 403. Errors:
+
+* 1 error occurred:
+        * permission denied
+
+
+
+
+[r-user@c-test] vault kv get kv-blog/it/servers/hr/root
+
+Error reading kv-blog/data/it/servers/hr/root: Error making API request.
+
+URL: GET http://172.18.1.104:8200/v1/kv-blog/data/it/servers/hr/root
+Code: 403. Errors:
+
+* 1 error occurred:
+        * permission denied
+
+
+
+If you want to re-run this demo, you should restart the database: docker kill postgres && ./1_launch_db.sh
+
+
+
+
+
+
+
+最后进行cleanup：
+[r-user@c-test vault_essential_patterns_blog]$ docker kill postgres openldap
+postgres
+openldap
+
+
+★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★
+★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★
+★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★
+
+★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★
+★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★
+★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★
+
+
+
+
+
+
+关于Token的一些测试。
+
+Batch token demo:
+[r-user@c-test vault_essential_patterns_blog]$ . env.sh
+[r-user@c-test vault_essential_patterns_blog]$ vault auth
+disable  enable   help     list     tune
+[r-user@c-test vault_essential_patterns_blog]$ vault auth list
+Path         Type        Accessor                  Description
+----         ----        --------                  -----------
+ldap-mo/     ldap        auth_ldap_67eec4dd        n/a
+ldap-um/     ldap        auth_ldap_8a7d696a        n/a
+token/       token       auth_token_bde75e77       token based credentials
+userpass/    userpass    auth_userpass_b8272cc7    n/a
+[r-user@c-test vault_essential_patterns_blog]$ vault auth enable approle
+Success! Enabled approle auth method at: approle/
+[r-user@c-test vault_essential_patterns_blog]$ vault write auth/approle/role/billing policies="billing" token_type="batch"
+Success! Data written to: auth/approle/role/billing
+[r-user@c-test vault_essential_patterns_blog]$ vault read auth/approle/role/billing/role-id
+Key        Value
+---        -----
+role_id    a1feb1f7-a8f4-e4b0-59c1-a8a495b06ffc
+[r-user@c-test vault_essential_patterns_blog]$ vault write -f auth/approle/role/billing/secret-id
+Key                   Value
+---                   -----
+secret_id             bd5c79b3-31b1-ee3d-c6ed-a3c533411a8e
+secret_id_accessor    0b49afc9-c2f8-a81f-191b-2f6ab6bb87e4
+[r-user@c-test vault_essential_patterns_blog]$ vault write auth/approle/login role_id=a1feb1f7-a8f4-e4b0-59c1-a8a495b06ffc secret_id=bd5c79b3-31b1-ee3d-c6ed-a3c533411a8e
+Key                     Value
+---                     -----
+token                   b.AAAAAQJVwxcAujTSrHT9oYOQTReeJzMCBy4ZVlgg6UEBx4WmXlVdtsC2hEMthlLVL4uKEraZhOz08TTbs_JzHvEYnKexrlQWEVbh55IEeEfyVxwVzm4knrdMZoYY8gzP8EWnL569zjfKWp2xqOKu2Hd0qi07dOFic7ZOP3CB6K5RALg988ZJjJYfgxIcQOrAcBJgvh4mqMr1X05w_oQuM35DXyZs
+token_accessor          n/a
+token_duration          768h
+token_renewable         false
+token_policies          ["billing" "default"]
+identity_policies       []
+policies                ["billing" "default"]
+token_meta_role_name    billing
+[r-user@c-test vault_essential_patterns_blog]$ vault token lookup b.AAAAAQJVwxcAujTSrHT9oYOQTReeJzMCBy4ZVlgg6UEBx4WmXlVdtsC2hEMthlLVL4uKEraZhOz08TTbs_JzHvEYnKexrlQWEVbh55IEeEfyVxwVzm4knrdMZoYY8gzP8EWnL569zjfKWp2xqOKu2Hd0qi07dOFic7ZOP3CB6K5RALg988ZJjJYfgxIcQOrAcBJgvh4mqMr1X05w_oQuM35DXyZs
+Key                 Value
+---                 -----
+accessor            n/a
+creation_time       1583806414
+creation_ttl        768h
+display_name        approle
+entity_id           e56ab9dd-7093-c8a7-5c61-3e11621926d3
+expire_time         2020-04-11T11:13:34+09:00
+explicit_max_ttl    0s
+id                  b.AAAAAQJVwxcAujTSrHT9oYOQTReeJzMCBy4ZVlgg6UEBx4WmXlVdtsC2hEMthlLVL4uKEraZhOz08TTbs_JzHvEYnKexrlQWEVbh55IEeEfyVxwVzm4knrdMZoYY8gzP8EWnL569zjfKWp2xqOKu2Hd0qi07dOFic7ZOP3CB6K5RALg988ZJjJYfgxIcQOrAcBJgvh4mqMr1X05w_oQuM35DXyZs
+issue_time          2020-03-10T11:13:34+09:00
+meta                map[role_name:billing]
+num_uses            0
+orphan              true
+path                auth/approle/login
+policies            [billing default]
+renewable           false
+ttl                 767h59m43s
+type                batch
+
+
+这个login并不会增加vault read /sys/internal/counters/tokens和entities中的计数。
+audit中也没有出现token create的记录。
+
+
+
+Token被revoke之后则不计算入token数量之中。
+
+[r-user@c-test vault_essential_patterns_blog]$ vault read /sys/internal/counters/tokens
+Key         Value
+---         -----
+counters    map[service_tokens:map[total:12]]
+[r-user@c-test vault_essential_patterns_blog]$ vault token create -ttl=60
+Key                  Value
+---                  -----
+token                s.O6SIB1HtPDTfBKQDDyZ9T4ls
+token_accessor       dPh5U6Q314iVrnVgnpLxVzv5
+token_duration       1m
+token_renewable      true
+token_policies       ["root"]
+identity_policies    []
+policies             ["root"]
+[r-user@c-test vault_essential_patterns_blog]$ vault read /sys/internal/counters/tokens
+Key         Value
+---         -----
+counters    map[service_tokens:map[total:13]]
+[r-user@c-test vault_essential_patterns_blog]$ vault token lookup s.O6SIB1HtPDTfBKQDDyZ9T4ls
+Key                 Value
+---                 -----
+accessor            dPh5U6Q314iVrnVgnpLxVzv5
+creation_time       1583808271
+creation_ttl        1m
+display_name        token
+entity_id           n/a
+expire_time         2020-03-10T11:45:31.771414+09:00
+explicit_max_ttl    0s
+id                  s.O6SIB1HtPDTfBKQDDyZ9T4ls
+issue_time          2020-03-10T11:44:31.77143003+09:00
+meta                <nil>
+num_uses            0
+orphan              false
+path                auth/token/create
+policies            [root]
+renewable           true
+ttl                 44s
+type                service
+一分钟经过之后：
+[r-user@c-test vault_essential_patterns_blog]$ vault token lookup s.O6SIB1HtPDTfBKQDDyZ9T4ls
+Error looking up token: Error making API request.
+
+URL: POST http://172.18.1.104:8200/v1/auth/token/lookup
+Code: 403. Errors:
+
+* bad token
+[r-user@c-test vault_essential_patterns_blog]$ vault read /sys/internal/counters/tokens
+Key         Value
+---         -----
+counters    map[service_tokens:map[total:12]]
+
+token数量自动减一。
+
+
+
+
+
+Tune the default TTLs
+如果不明确指定，token会被赋予缺省的TTL值。系统缺省max TTL为32天，但是你可以修改这些缺省值。
+这些值存放在这个endpoint里面： /sys/auth/<METHOD>/tune。举例：
+[r-user@c-test vault_essential_patterns_blog]$ vault read sys/auth/approle/tune
+Key                  Value
+---                  -----
+default_lease_ttl    768h
+force_no_cache       false
+max_lease_ttl        768h
+token_type           default-service
+
+
+
+
+
+
+
+★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★
+★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★
+★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★
+
+★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★
+★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★
+★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★
+
+做个Versioned Key/Value Secrets Engine的测试。
+
+先准备一个指定policy的token
+[r-user@c-test ~]$ cat test.hcl
+# Write and manage secrets in key-value secrets engine
+path "secret/*" {
+  capabilities = ["create", "read", "update", "delete", "list"]
+}
+# To enable secrets engines
+path "sys/mounts/*" {
+  capabilities = ["create", "read", "update", "delete", "list", "sudo"]
+}
+# 专门用来允许secrets list操作的
+path "sys/mounts" {
+  capabilities = ["read"]
+}
+
+[r-user@c-test ~]$ vault policy fmt test.hcl
+Success! Formatted policy: test.hcl
+
+[r-user@c-test ~]$
+[r-user@c-test ~]$
+[r-user@c-test ~]$
+[r-user@c-test ~]$
+[r-user@c-test ~]$ vault auth list
+Path         Type        Accessor                  Description
+----         ----        --------                  -----------
+approle/     approle     auth_approle_f02e7bec     n/a
+ldap-mo/     ldap        auth_ldap_67eec4dd        n/a
+ldap-um/     ldap        auth_ldap_8a7d696a        n/a
+token/       token       auth_token_bde75e77       token based credentials
+userpass/    userpass    auth_userpass_b8272cc7    n/a
+[r-user@c-test ~]$ vault read sys/policy
+Key         Value
+---         -----
+keys        [autounseal db-engineering db-full-read db-hr default kv-it kv-user-template transit-hr root]
+policies    [autounseal db-engineering db-full-read db-hr default kv-it kv-user-template transit-hr root]
+[r-user@c-test ~]$ vault policy list
+autounseal
+db-engineering
+db-full-read
+db-hr
+default
+kv-it
+kv-user-template
+transit-hr
+root
+[r-user@c-test ~]$ vault policy write testpolicy test.hcl
+Success! Uploaded policy: testpolicy
+[r-user@c-test ~]$ vault policy list
+autounseal
+db-engineering
+db-full-read
+db-hr
+default
+kv-it
+kv-user-template
+testpolicy
+transit-hr
+root
+[r-user@c-test ~]$ vault policy read testpolicy
+# Write and manage secrets in key-value secrets engine
+path "secret/*" {
+  capabilities = ["create", "read", "update", "delete", "list"]
+}
+
+# To enable secrets engines
+path "sys/mounts/*" {
+  capabilities = ["create", "read", "update", "delete", "list", "sudo"]
+}
+
+path "sys/mounts" {
+  capabilities = ["read"]
+}
+
+[r-user@c-test ~]$ vault read sys/policy/testpolicy
+Key      Value
+---      -----
+name     testpolicy
+rules    # Write and manage secrets in key-value secrets engine
+path "secret/*" {
+  capabilities = ["create", "read", "update", "delete", "list"]
+}
+
+# To enable secrets engines
+path "sys/mounts/*" {
+  capabilities = ["create", "read", "update", "delete", "list", "sudo"]
+}
+
+path "sys/mounts" {
+  capabilities = ["read"]
+}
+
+
+[r-user@c-test ~]$ vault token create -policy=testpolicy
+Key                  Value
+---                  -----
+token                s.qn0GS2U0DE3C9HutyLUQNqiQ
+token_accessor       1sbhWpGOL1RxOSrKVp7ZUdrd
+token_duration       768h
+token_renewable      true
+token_policies       ["default" "testpolicy"]
+identity_policies    []
+policies             ["default" "testpolicy"]
+[r-user@c-test ~]$
+token总数会加1，而entities的数量是不变的。
+[r-user@c-test ~]$ vault read /sys/internal/counters/tokens
+Key         Value
+---         -----
+counters    map[service_tokens:map[total:13]]
+
+
+[r-user@c-test ~]$ unset VAULT_TOKEN
+[r-user@c-test ~]$ vault login s.qn0GS2U0DE3C9HutyLUQNqiQ
+Success! You are now authenticated. The token information displayed below
+is already stored in the token helper. You do NOT need to run "vault login"
+again. Future Vault requests will automatically use this token.
+
+Key                  Value
+---                  -----
+token                s.qn0GS2U0DE3C9HutyLUQNqiQ
+token_accessor       1sbhWpGOL1RxOSrKVp7ZUdrd
+token_duration       767h58m33s
+token_renewable      true
+token_policies       ["default" "testpolicy"]
+identity_policies    []
+policies             ["default" "testpolicy"]
+[r-user@c-test ~]$ vault token lookup
+Key                 Value
+---                 -----
+accessor            1sbhWpGOL1RxOSrKVp7ZUdrd
+creation_time       1583816293
+creation_ttl        768h
+display_name        token
+entity_id           n/a
+expire_time         2020-04-11T13:58:13.269967053+09:00
+explicit_max_ttl    0s
+id                  s.qn0GS2U0DE3C9HutyLUQNqiQ
+issue_time          2020-03-10T13:58:13.269983863+09:00
+meta                <nil>
+num_uses            0
+orphan              false
+path                auth/token/create
+policies            [default testpolicy]
+renewable           true
+ttl                 767h35m
+type                service
+
+[r-user@c-test ~]$ vault secrets enable -path=secret kv-v2
+Success! Enabled the kv-v2 secrets engine at: secret/
+
+[r-user@c-test ~]$ vault secrets list -detailed
+Path             Plugin       Accessor              Default TTL    Max TTL    Force No Cache    Replication    Seal Wrap    External Entropy Access    Options           Description                                                UUID
+----             ------       --------              -----------    -------    --------------    -----------    ---------    -----------------------    -------           -----------                                                ----
+cubbyhole/       cubbyhole    cubbyhole_f5c3463a    n/a            n/a        false             local          false        false                      map[]             per-token private secret storage                           50fff2c8-2b06-eacd-89f9-7656989b1200
+db-blog/         database     database_28bd9ab8     system         system     false             replicated     false        false                      map[]             n/a                                                        1d0c42e8-6d79-2e84-e201-ae554a2f2fa5
+identity/        identity     identity_530fa6bb     system         system     false             replicated     false        false                      map[]             identity store                                             92fb0dc3-8832-dc88-ce18-0311f2e17b61
+kv-blog/         kv           kv_4a925e4f           system         system     false             replicated     false        false                      map[version:2]    n/a                                                        2fb78806-c809-af3d-e95a-307da5343416
+secret/          kv           kv_b8d65ea9           system         system     false             replicated     false        false                      map[version:2]    n/a                                                        078dde66-bdcd-c9e0-4b2a-964138bedecf
+sys/             system       system_579f9320       n/a            n/a        false             replicated     false        false                      map[]             system endpoints used for control, policy and debugging    8a24c4ec-5bca-dad8-cc0d-7576feec212b
+transit-blog/    transit      transit_1b6543f5      system         system     false             replicated     false        false                      map[]             n/a                                                        ae48f00b-91f9-3855-590e-2c6335e7186f
+transit/         transit      transit_aa73f134      system         system     false             replicated     false        false                      map[]             n/a                                                        a4024000-5f60-3408-d5e2-4cea8bc14e36
+
+[r-user@c-test ~]$ vault kv put secret/customer/acme name="ACME Inc." contact_email="jsmith@acme.com"
+Key              Value
+---              -----
+created_time     2020-03-10T08:08:06.873567318Z
+deletion_time    n/a
+destroyed        false
+version          1
+进行数据的update
+[r-user@c-test ~]$ vault kv put secret/customer/acme name="ACME Inc." contact_email="john.smith@acme.com"
+Key              Value
+---              -----
+created_time     2020-03-10T08:18:09.021503526Z
+deletion_time    n/a
+destroyed        false
+version          2
+[r-user@c-test ~]$ vault kv get secret/customer/acme
+====== Metadata ======
+Key              Value
+---              -----
+created_time     2020-03-10T08:18:09.021503526Z
+deletion_time    n/a
+destroyed        false
+version          2
+
+======== Data ========
+Key              Value
+---              -----
+contact_email    john.smith@acme.com
+name             ACME Inc.
+
+只update一个值而不改变其他值使用patch命令：
+[r-user@c-test ~]$ vault kv patch secret/customer/acme contact_email="admin@acme.com"
+Key              Value
+---              -----
+created_time     2020-03-10T08:22:31.677859492Z
+deletion_time    n/a
+destroyed        false
+version          3
+[r-user@c-test ~]$ vault kv get secret/customer/acme
+====== Metadata ======
+Key              Value
+---              -----
+created_time     2020-03-10T08:22:31.677859492Z
+deletion_time    n/a
+destroyed        false
+version          3
+
+======== Data ========
+Key              Value
+---              -----
+contact_email    admin@acme.com
+name             ACME Inc.
+如果使用put的话会意外的丢数据：
+[r-user@c-test ~]$ vault kv put secret/customer/acme contact_email="admin@acme.com"
+Key              Value
+---              -----
+created_time     2020-03-10T08:23:39.501480617Z
+deletion_time    n/a
+destroyed        false
+version          4
+[r-user@c-test ~]$
+[r-user@c-test ~]$ vault kv get secret/customer/acme
+====== Metadata ======
+Key              Value
+---              -----
+created_time     2020-03-10T08:23:39.501480617Z
+deletion_time    n/a
+destroyed        false
+version          4
+
+======== Data ========
+Key              Value
+---              -----
+contact_email    admin@acme.com
+
+读取第一个版本：
+[r-user@c-test ~]$ vault kv get -version=1 secret/customer/acme
+====== Metadata ======
+Key              Value
+---              -----
+created_time     2020-03-10T08:08:06.873567318Z
+deletion_time    n/a
+destroyed        false
+version          1
+
+======== Data ========
+Key              Value
+---              -----
+contact_email    jsmith@acme.com
+name             ACME Inc.
+
+读取metadata：
+[r-user@c-test ~]$ vault kv metadata get secret/customer/acme
+========== Metadata ==========
+Key                     Value
+---                     -----
+cas_required            false
+created_time            2020-03-10T08:08:06.873567318Z
+current_version         4
+delete_version_after    0s
+max_versions            0
+oldest_version          0
+updated_time            2020-03-10T08:23:39.501480617Z
+
+====== Version 1 ======
+Key              Value
+---              -----
+created_time     2020-03-10T08:08:06.873567318Z
+deletion_time    n/a
+destroyed        false
+
+====== Version 2 ======
+Key              Value
+---              -----
+created_time     2020-03-10T08:18:09.021503526Z
+deletion_time    n/a
+destroyed        false
+
+====== Version 3 ======
+Key              Value
+---              -----
+created_time     2020-03-10T08:22:31.677859492Z
+deletion_time    n/a
+destroyed        false
+
+====== Version 4 ======
+Key              Value
+---              -----
+created_time     2020-03-10T08:23:39.501480617Z
+deletion_time    n/a
+destroyed        false
+
+
+
+By default, the kv-v2 secrets engine keeps up to 10 versions. Let's limit the maximum number of versions to keep to be 4.
+[r-user@c-test ~]$ vault write secret/config max_versions=4
+Success! Data written to: secret/config
+[r-user@c-test ~]$ vault read secret/config
+Key             Value
+---             -----
+cas_required    false
+max_versions    4
+
+Or, to limit the number of versions only on the secret/customer/acme path rather than the entire secret/ engine:
+[r-user@c-test ~]$ vault kv metadata put -max-versions=4 secret/customer/acme
+Success! Data written to: secret/metadata/customer/acme
+[r-user@c-test ~]$ vault read secret/metadata/customer/acme
+Key                     Value
+---                     -----
+cas_required            false
+created_time            2020-03-10T08:08:06.873567318Z
+current_version         4
+delete_version_after    0s
+max_versions            4
+oldest_version          0
+updated_time            2020-03-10T08:23:39.501480617Z
+versions                map[1:map[created_time:2020-03-10T08:08:06.873567318Z deletion_time: destroyed:false] 2:map[created_time:2020-03-10T08:18:09.021503526Z deletion_time: destroyed:false] 3:map[created_time:2020-03-10T08:22:31.677859492Z deletion_time: destroyed:false] 4:map[created_time:2020-03-10T08:23:39.501480617Z deletion_time: destroyed:false]]
+
+再update几次，发现4次以前的版本已经永久删除，再也不可能恢复了：
+[r-user@c-test ~]$ vault kv patch secret/customer/acme contact_email="admin1@acme.com"
+Key              Value
+---              -----
+created_time     2020-03-10T08:36:11.09780446Z
+deletion_time    n/a
+destroyed        false
+version          5
+[r-user@c-test ~]$ vault kv patch secret/customer/acme contact_email="admin2@acme.com"
+Key              Value
+---              -----
+created_time     2020-03-10T08:36:15.562135464Z
+deletion_time    n/a
+destroyed        false
+version          6
+[r-user@c-test ~]$ vault kv patch secret/customer/acme contact_email="admin3@acme.com"
+Key              Value
+---              -----
+created_time     2020-03-10T08:36:18.863385918Z
+deletion_time    n/a
+destroyed        false
+version          7
+[r-user@c-test ~]$ vault kv metadata get secret/customer/acme
+========== Metadata ==========
+Key                     Value
+---                     -----
+cas_required            false
+created_time            2020-03-10T08:08:06.873567318Z
+current_version         7
+delete_version_after    0s
+max_versions            4
+oldest_version          4
+updated_time            2020-03-10T08:36:18.863385918Z
+
+====== Version 4 ======
+Key              Value
+---              -----
+created_time     2020-03-10T08:23:39.501480617Z
+deletion_time    n/a
+destroyed        false
+
+====== Version 5 ======
+Key              Value
+---              -----
+created_time     2020-03-10T08:36:11.09780446Z
+deletion_time    n/a
+destroyed        false
+
+====== Version 6 ======
+Key              Value
+---              -----
+created_time     2020-03-10T08:36:15.562135464Z
+deletion_time    n/a
+destroyed        false
+
+====== Version 7 ======
+Key              Value
+---              -----
+created_time     2020-03-10T08:36:18.863385918Z
+deletion_time    n/a
+destroyed        false
+
+删除
+[r-user@c-test ~]$ vault kv delete -versions="4,5" secret/customer/acme
+Success! Data deleted (if it existed) at: secret/customer/acme
+[r-user@c-test ~]$ vault kv metadata get secret/customer/acme
+========== Metadata ==========
+Key                     Value
+---                     -----
+cas_required            false
+created_time            2020-03-10T08:08:06.873567318Z
+current_version         7
+delete_version_after    0s
+max_versions            4
+oldest_version          4
+updated_time            2020-03-10T08:36:18.863385918Z
+
+====== Version 4 ======
+Key              Value
+---              -----
+created_time     2020-03-10T08:23:39.501480617Z
+deletion_time    2020-03-10T08:39:31.282248874Z
+destroyed        false
+
+====== Version 5 ======
+Key              Value
+---              -----
+created_time     2020-03-10T08:36:11.09780446Z
+deletion_time    2020-03-10T08:39:31.282249337Z
+destroyed        false
+
+====== Version 6 ======
+Key              Value
+---              -----
+created_time     2020-03-10T08:36:15.562135464Z
+deletion_time    n/a
+destroyed        false
+
+====== Version 7 ======
+Key              Value
+---              -----
+created_time     2020-03-10T08:36:18.863385918Z
+deletion_time    n/a
+destroyed        false
+此时并没有destroy，还可以反悔：
+[r-user@c-test ~]$ vault kv undelete -versions=5 secret/customer/acme
+Success! Data written to: secret/undelete/customer/acme
+[r-user@c-test ~]$ vault kv metadata get secret/customer/acme
+========== Metadata ==========
+Key                     Value
+---                     -----
+cas_required            false
+created_time            2020-03-10T08:08:06.873567318Z
+current_version         7
+delete_version_after    0s
+max_versions            4
+oldest_version          4
+updated_time            2020-03-10T08:36:18.863385918Z
+
+====== Version 4 ======
+Key              Value
+---              -----
+created_time     2020-03-10T08:23:39.501480617Z
+deletion_time    2020-03-10T08:39:31.282248874Z
+destroyed        false
+
+====== Version 5 ======
+Key              Value
+---              -----
+created_time     2020-03-10T08:36:11.09780446Z
+deletion_time    n/a
+destroyed        false
+
+====== Version 6 ======
+Key              Value
+---              -----
+created_time     2020-03-10T08:36:15.562135464Z
+deletion_time    n/a
+destroyed        false
+
+====== Version 7 ======
+Key              Value
+---              -----
+created_time     2020-03-10T08:36:18.863385918Z
+deletion_time    n/a
+destroyed        false
+
+永久删除：
+[r-user@c-test ~]$ vault kv destroy -versions=4 secret/customer/acme
+Success! Data written to: secret/destroy/customer/acme
+[r-user@c-test ~]$ vault kv metadata get secret/customer/acme
+========== Metadata ==========
+Key                     Value
+---                     -----
+cas_required            false
+created_time            2020-03-10T08:08:06.873567318Z
+current_version         7
+delete_version_after    0s
+max_versions            4
+oldest_version          4
+updated_time            2020-03-10T08:36:18.863385918Z
+
+====== Version 4 ======
+Key              Value
+---              -----
+created_time     2020-03-10T08:23:39.501480617Z
+deletion_time    2020-03-10T08:39:31.282248874Z
+destroyed        true
+
+====== Version 5 ======
+Key              Value
+---              -----
+created_time     2020-03-10T08:36:11.09780446Z
+deletion_time    n/a
+destroyed        false
+
+====== Version 6 ======
+Key              Value
+---              -----
+created_time     2020-03-10T08:36:15.562135464Z
+deletion_time    n/a
+destroyed        false
+
+====== Version 7 ======
+Key              Value
+---              -----
+created_time     2020-03-10T08:36:18.863385918Z
+deletion_time    n/a
+destroyed        false
+全部永久删除：
+[r-user@c-test ~]$ vault kv metadata delete secret/customer/acme
+Success! Data deleted (if it existed) at: secret/metadata/customer/acme
+[r-user@c-test ~]$ vault kv metadata get secret/customer/acme
+No value found at secret/metadata/customer/acme
+
+
+定时删除数据，注意不是destroy：
+[r-user@c-test ~]$ vault kv metadata put -delete-version-after=40s secret/test
+Success! Data written to: secret/metadata/test
+[r-user@c-test ~]$ vault kv put secret/test message="data1"
+Key              Value
+---              -----
+created_time     2020-03-10T08:44:47.660241702Z
+deletion_time    2020-03-10T08:45:27.660241702Z
+destroyed        false
+version          1
+[r-user@c-test ~]$ vault kv put secret/test message="data2"
+Key              Value
+---              -----
+created_time     2020-03-10T08:44:55.583633443Z
+deletion_time    2020-03-10T08:45:35.583633443Z
+destroyed        false
+version          2
+[r-user@c-test ~]$ vault kv put secret/test message="data3"
+Key              Value
+---              -----
+created_time     2020-03-10T08:45:01.589336195Z
+deletion_time    2020-03-10T08:45:41.589336195Z
+destroyed        false
+version          3
+[r-user@c-test ~]$ vault kv metadata get secret/test
+========== Metadata ==========
+Key                     Value
+---                     -----
+cas_required            false
+created_time            2020-03-10T08:44:40.769869883Z
+current_version         3
+delete_version_after    40s
+max_versions            0
+oldest_version          0
+updated_time            2020-03-10T08:45:01.589336195Z
+
+====== Version 1 ======
+Key              Value
+---              -----
+created_time     2020-03-10T08:44:47.660241702Z
+deletion_time    2020-03-10T08:45:27.660241702Z
+destroyed        false
+
+====== Version 2 ======
+Key              Value
+---              -----
+created_time     2020-03-10T08:44:55.583633443Z
+deletion_time    2020-03-10T08:45:35.583633443Z
+destroyed        false
+
+====== Version 3 ======
+Key              Value
+---              -----
+created_time     2020-03-10T08:45:01.589336195Z
+deletion_time    2020-03-10T08:45:41.589336195Z
+destroyed        false
+
+The v2 of KV secrets engine supports a Check-And-Set operation to prevent unintentional secret overwrite. 
+By default, Check-And-Set operation is not enabled on the KV secrets engine; therefore write is always allowed (no checking is performed).
+[r-user@c-test ~]$ vault read secret/config
+Key             Value
+---             -----
+cas_required    false
+max_versions    4
+[r-user@c-test ~]$ vault write secret/config cas-required=true
+Success! Data written to: secret/config
+[r-user@c-test ~]$ vault read secret/config
+Key             Value
+---             -----
+cas_required    false
+max_versions    4
+???
+
+[r-user@c-test ~]$ vault kv metadata put -cas-required=true secret/partner
+Success! Data written to: secret/metadata/partner
+[r-user@c-test ~]$ vault read secret/metadata/partner
+Key                     Value
+---                     -----
+cas_required            true
+created_time            2020-03-10T08:51:43.883265756Z
+current_version         0
+delete_version_after    0s
+max_versions            0
+oldest_version          0
+updated_time            2020-03-10T08:51:43.883265756Z
+versions                map[]
+
+If you are sure that you want to overwrite the existing key-value, set cas to match the current version. Set cas to 0 if you want to write the secret only if the key does not exists.
+之后每次put数据都必须要指定cas值。
+[r-user@c-test ~]$ vault kv put -cas=0 secret/partner name="Example Co." partner_id="123456789"
+Key              Value
+---              -----
+created_time     2020-03-10T08:54:11.131891358Z
+deletion_time    n/a
+destroyed        false
+version          1
+[r-user@c-test ~]$ vault kv put -cas=1 secret/partner name="Example Co." partner_id="ABCDEFGHIJKLMN"
+Key              Value
+---              -----
+created_time     2020-03-10T08:54:38.531643253Z
+deletion_time    n/a
+destroyed        false
+version          2
+
+
+
+
+★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★
+★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★
+★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★
+
+★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★
+★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★
+★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★
+
+
+Performance Benchmark
+https://medium.com/hashicorp-engineering/hashicorp-vault-performance-benchmark-13d0ea7b703f
+
+
+安装LUA
+[r-user@c-test ~]$ sudo yum install gcc
+cd /opt
+wget http://luajit.org/download/LuaJIT-2.0.5.tar.gz
+tar -zxvf LuaJIT-2.0.5.tar.gz
+cd LuaJIT-2.0.5
+make && make install
+# or sudo make install if you are not 'root'
+
+安装wrk
+yum install https://extras.getpagespeed.com/release-el7-latest.rpm
+yum install wrk
+握草，竟然要花USD9.99进行subscribe后才能安装？！
+
+sudo yum groupinstall 'Development Tools'
+sudo yum install -y openssl-devel git 
+git clone https://github.com/wg/wrk.git wrk
+cd wrk
+make
+sudo cp wrk /usr/local/bin
+安装wrk完毕。
+
+git clone https://github.com/hashicorp/vault-guides.git
+cd vault-guides/operations/benchmarking/wrk-core-vault-operations
+
+[r-user@c-test wrk-core-vault-operations]$ vault list auth/userpass/users
+Keys
+----
+mitchellh
+[r-user@c-test wrk-core-vault-operations]$ vault read auth/userpass/users/mitchellh
+Key                        Value
+---                        -----
+policies                   [admins]
+token_bound_cidrs          []
+token_explicit_max_ttl     0s
+token_max_ttl              0s
+token_no_default_policy    false
+token_num_uses             0
+token_period               0s
+token_policies             [admins]
+token_ttl                  0s
+token_type                 default
+
+[r-user@c-test wrk-core-vault-operations]$ vault write auth/userpass/users/loadtester password=benchmark policies=default
+Success! Data written to: auth/userpass/users/loadtester
+
+# Concurrent write of random secrets, with:
+# 6 concurrent threads
+# 16 connections per thread
+# 20 seconds to run the test
+# 1000 secrets to write
+# Write benchmark results to file prod-test-write-1000-random-secrets-t6-c16-20sec.log
+
+[r-user@c-test wrk-core-vault-operations]$ nohup wrk -t6 -c16 -d20s -H "X-Vault-Token: $VAULT_TOKEN" -s write-random-secrets.lua $VAULT_ADDR -- 10000 > prod-test-write-1000-random-secrets-t6-c16-20sec.log
+nohup: ignoring input and redirecting stderr to stdout
+[r-user@c-test wrk-core-vault-operations]$ ll
+total 96
+-rw-rw-r-- 1 r-user r-user  1703 Mar 16 12:48 authenticate-and-revoke.lua
+-rw-rw-r-- 1 r-user r-user  1478 Mar 16 12:48 authenticate.lua
+-rwxrwxr-x 1 r-user r-user  1525 Mar 16 12:48 delete-secrets.lua
+-rw-rw-r-- 1 r-user r-user   533 Mar 16 12:53 env.sh
+-rw-rw-r-- 1 r-user r-user 10014 Mar 16 12:48 json.lua
+-rw-rw-r-- 1 r-user r-user 16725 Mar 16 12:48 LICENSE
+-rw-rw-r-- 1 r-user r-user  1862 Mar 16 12:48 list-secrets.lua
+-rw-rw-r-- 1 r-user r-user  1080 Mar 16 13:38 prod-test-write-1000-random-secrets-t6-c16-20sec.log
+-rw-rw-r-- 1 r-user r-user 12692 Mar 16 12:48 README.md
+-rw-rw-r-- 1 r-user r-user  2004 Mar 16 12:48 read-secrets.lua
+-rwxrwxr-x 1 r-user r-user  3153 Mar 16 12:48 run_tests.sh
+-rw-rw-r-- 1 r-user r-user  2828 Mar 16 12:48 write-delete-secrets.lua
+-rw-rw-r-- 1 r-user r-user  1595 Mar 16 12:48 write-list.lua
+-rw-rw-r-- 1 r-user r-user  1731 Mar 16 12:48 write-random-secrets.lua
+-rw-rw-r-- 1 r-user r-user  1917 Mar 16 12:48 write-secrets.lua
+[r-user@c-test wrk-core-vault-operations]$ cat prod-test-write-1000-random-secrets-t6-c16-20sec.log
+Number of secrets is: 10000
+thread 1 created
+Number of secrets is: 10000
+thread 2 created
+Number of secrets is: 10000
+thread 3 created
+Number of secrets is: 10000
+thread 4 created
+Number of secrets is: 10000
+thread 5 created
+Number of secrets is: 10000
+thread 6 created
+Running 20s test @ http://172.18.1.104:8200
+  6 threads and 16 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     3.62ms    2.70ms  35.55ms   81.63%
+    Req/Sec   580.42     89.53     1.20k    68.15%
+  69479 requests in 20.09s, 31.27MB read
+  Non-2xx or 3xx responses: 69479
+                            ^^^^^^
+Requests/sec:   3458.74
+Transfer/sec:      1.56MB
+thread 1 made 11467 requests including 11467 writes and got 11465 responses
+thread 2 made 11569 requests including 11569 writes and got 11569 responses
+thread 3 made 11568 requests including 11568 writes and got 11568 responses
+thread 4 made 11414 requests including 11414 writes and got 11414 responses
+thread 5 made 11729 requests including 11729 writes and got 11727 responses
+thread 6 made 11737 requests including 11737 writes and got 11736 responses
+
+As you can see in bold, there were 69,479 responses, which matches the number of unsuccessful responses.
+这也就是下面6个thread的responses之和。
+这是因为我们已经有一个叫做secret的KV2类型的secret engine了。我们来解决这个问题。
+
+# Update write-random-secrets.lua to the path "secret2"
+
+sed -i -e 's+/v1/secret/+/v1/secret2/+g' write-random-secrets.lua
+vault secrets enable -path secret2 -version 1 kv
+
+[r-user@c-test wrk-core-vault-operations]$ nohup wrk -t1 -c1 -d20s -H "X-Vault-Token: $VAULT_TOKEN" -s write-random-secrets.lua $VAULT_ADDR -- 10000 > prod-test-write-1000-random-secrets-t6-c16-20sec.log &
+[1] 16112
+[r-user@c-test wrk-core-vault-operations]$ nohup: ignoring input and redirecting stderr to stdout
+[1]+  Done                    nohup wrk -t1 -c1 -d20s -H "X-Vault-Token: $VAULT_TOKEN" -s write-random-secrets.lua $VAULT_ADDR -- 10000 > prod-test-write-1000-random-secrets-t6-c16-20sec.log
+
+[r-user@c-test wrk-core-vault-operations]$ cat prod-test-write-1000-random-secrets-t6-c16-20sec.log
+Number of secrets is: 10000
+thread 1 created
+Running 20s test @ http://172.18.1.104:8200
+  1 threads and 1 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency    12.38ms    1.59ms  24.49ms   86.82%
+    Req/Sec    80.43      6.13    90.00     62.50%
+  1609 requests in 20.04s, 190.13KB read
+Requests/sec:     80.31
+Transfer/sec:      9.49KB
+thread 1 made 1611 requests including 1611 writes and got 1609 responses
+这次貌似所有的请求都成功了。。。
+[r-user@c-test wrk-core-vault-operations]$ vault kv list secret2
+Keys
+----
+write-random-test-1
+write-random-test-1002
+write-random-test-1007
+write-random-test-1009
+write-random-test-1010
+。。。。。。
+
+
+
+
+
+■ 制作image
+
+[r-user@test-vm ~]$ curl -o packer.zip https://releases.hashicorp.com/packer/1.5.4/packer_1.5.4_linux_amd64.zip
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100 45.8M  100 45.8M    0     0  70.2M      0 --:--:-- --:--:-- --:--:-- 70.2M
+[r-user@test-vm ~]$ git clone https://github.com/hashicorp/guides-configuration
+Cloning into 'guides-configuration'...
+remote: Enumerating objects: 1905, done.
+remote: Total 1905 (delta 0), reused 0 (delta 0), pack-reused 1905
+Receiving objects: 100% (1905/1905), 297.83 KiB | 452.00 KiB/s, done.
+Resolving deltas: 100% (1185/1185), done.
+
+# Set environment variables 
+#If you need help getting or creating AWS API keys, you can find more information in https://aws.amazon.com/blogs/security/wheres-my-secret-access-key/
+export AWS_ACCESS_KEY_ID=[YOUR ACCESS KEY HERE]
+export AWS_SECRET_ACCESS_KEY=[YOUR KEY HERE]
+export AWS_DEFAULT_REGION=[DESIRED REGION HERE]export CONSUL_VERSION="1.7.1"
+export VAULT_VERSION="1.3.2"
+
+# You can use the enterprise URLs here if you prefer (will need to add license manually once deployed)export VAULT_ENT_URL="https://releases.hashicorp.com/vault/1.3.2/vault_1.3.2_linux_amd64.zip"
+export CONSUL_ENT_URL="https://releases.hashicorp.com/consul/1.7.1/consul_1.7.1_linux_amd64.zip"
+
+# Release version of this image, just for referenceexport RELEASE_VERSION="0.0.1"packer build -only=amazon-ebs-ubuntu-16.04-systemd vault-aws.json
+cd ../consul
+packer build -only=amazon-ebs-ubuntu-16.04-systemd vault-aws.json# This will run Packer twice, building two Ubuntu-based images, for Vault and Consul.
+
+
+
+
+
+
+
+
+
+★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★
+★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★
+★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★
+
+★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★
+★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★
+★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★
+
+
+
+https://www.vaultproject.io/api-docs/system/audit/
+https://www.vaultproject.io/api/system/audit-hash.html
+https://www.vaultproject.io/api/system/config-auditing.html
+
+Also remind that the config above can be overriden at the mount level (which is what I do, for some non-critical mounts)
+https://www.vaultproject.io/api/system/mounts.html#parameters
+
+you can tell Vault to write certain information into the audit log in clear text. For example:
+vault write /sys/auth/token/tune audit_non_hmac_request_keys=display_name,policies,type
+vault write /sys/auth/token/tune audit_non_hmac_response_keys=error
+
+You can do the same for your authentication provider and then read the audit log for example with jq: grep <client IP|accessor|time|or whatever youre searching for> vault.log | jq . | less -S
+Of course you shouldn't unhash everything in the audit log, otherwise you'll end up with secrets written into your log.
+
+
+???
+从另外一台主机执行：
+[r-user@test-vm ~]$ VAULT_ADDR="http://172.18.1.104:8200" vault status
+Error checking seal status: Get http://172.18.1.104:8200/v1/sys/seal-status: dial tcp 172.18.1.104:8200: i/o timeout

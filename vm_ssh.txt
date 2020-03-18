@@ -1,0 +1,768 @@
+
+Unseal Key 1: 4mz1eXFSAdsUn6grhli1V83E4FsWey2Wx+YChWQtai5G
+Unseal Key 2: zDM61JeYXz8JHBC+EYw5mQLLo1sT8uVuix274FzIi1t0
+Unseal Key 3: /wLB/kJOwbSTv/sCqbwxPf5QlpNM2RfTpIccKhAESTsL
+Unseal Key 4: Dujw8jTRsKAQo/FtHYUwEYs0vgOT/vQh4UorRmC8u00C
+Unseal Key 5: +l/O0nphNnXepD9mrUeHG3GF23yxVAh/6KRTNJrQUkKq
+
+Initial Root Token: s.YgnYGi5EtmsNDYqes7I0nVyv　-->　revoke
+		-->　　s.5JqhuPCbHjFCT3RbMd4tGdEW
+
+Unseal Key: VM6Y2Ag+ADm+mkITy2FNeYLKtOCkjbK9Zr5u8dCg74o=
+Root Token: s.cNYRjLM2K7vNoApg3FXhCU0a
+
+ssh -i C:\Users\song.liu\Documents\sample-key-001.pem r-user@103.136.153.92
+export VAULT_ADDR="http://127.0.0.1:8200"
+mv /path/to/vault /usr/local/bin
+chmod +x /usr/local/bin/vault
+
+vault -autocomplete-install
+exec $SHELL
+
+启动服务完毕之后可以：
+export VAULT_DEV_ROOT_TOKEN_ID="s.XmpNPoi9sRhYtdKHaQhkHP6x"
+
+vault kv put secret/mypassword password=p@SSW0d
+vault kv list secret/
+vault kv get secret/mypassword
+
+
+cat > vault-local-config.hcl <<EOF
+storage "file" {
+   path = "/home/r-user/vault-workshop/vaultdata"
+}
+
+listener "tcp" {
+  address     = "127.0.0.1:8200"
+  tls_disable = 1
+}
+
+ui = true
+disable_mlock=true
+EOF
+
+另外一种写法是
+backend "file" {
+  path = "vault"
+}
+不清楚与storage "file"有什么区别。
+
+vault server -config vault-local-config.hcl
+
+vault operator init
+
+■　seal==> unseal
+vault operator unseal
+vault operator unseal
+vault operator unseal
+vault status
+vault login
+
+■　Prepare secrets engine for database
+vault secrets enable -path=kvpath -version=2 kv
+vault secrets list
+vault secrets enable -path=dbpath database
+vault secrets list
+
+■　enable engine之后可以查看每种engine的path结构
+vault path-help dbpath
+vault path-help dbpath/creds/my-non-existent-role
+vault path-help dbpath/config/my-non-existent-config
+
+
+===============================================================================================================
+■ MySQL
+cat /etc/redhat-release
+uname -a
+rpm -qa|grep -i mysql
+
+wget https://dev.mysql.com/get/mysql80-community-release-el7-2.noarch.rpm
+rpm -ivh https://dev.mysql.com/get/mysql80-community-release-el7-2.noarch.rpm
+yum repolist all | grep mysql
+yum install -y mysql-community-server (自动选择y，全自动)
+yum install mysql-community-server
+yum list | grep mysql
+
+
+如果出问题可以卸载：
+yum clean all
+rpm -e mysql80-community-release
+rpm -qa|grep -i mysql
+
+
+systemctl start mysqld.service
+systemctl enable mysqld.service
+grep password /var/log/mysqld.log
+2020-02-19T06:04:53.471597Z 5 [Note] [MY-010454] [Server] A temporary password is generated for root@localhost: ui2#?iPJ<cX,
+先更改密码：
+mysql_secure_installation
+V9djjjWFd_wf
+
+如果发生root无法登录的问题时：
+■ mysqldを停止
+# systemctl stop mysqld
+■ MYSQLD_OPTSでパスワード認証を無効化
+# systemctl set-environment MYSQLD_OPTS="--skip-grant-tables"
+■ mysqldを起動
+# systemctl start mysqld
+# mysql -u root
+修改root口令
+mysql > UPDATE mysql.user SET authentication_string=null WHERE User='root';
+mysql > exit;
+// MySQLを再起動
+// パスワードなしでログイン
+$ mysql -u root
+password:  //入力せず,Enter
+// パスワードを再設定
+mysql > USE mysql;
+mysql > ALTER USER 'root'@'localhost' identified BY 'hogehoge';
+mysql > exit;
+完成以后将参数改回去
+■ mysqldを停止
+# systemctl stop mysqld
+■ MYSQLD_OPTSの設定を元に戻す
+# systemctl set-environment MYSQLD_OPTS=""
+■ mysqldを起動
+# systemctl start mysqld
+
+做一些MySQL的测试准备：
+mysql -u root -p -h 127.0.0.1
+mysql> create database handson;
+mysql> use handson;
+mysql> create table products (id int, name varchar(50), price varchar(50));
+mysql> insert into products (id, name, price) values (1, "Nice hoodie", "1580");
+===============================================================================================================
+
+
+allowed_rolesはこれから作成するユーザのロールの名前です。allowed_rolesはList型になっており、一つのコンフィグに複数のロールを紐づけることが可能です。
+vault write dbpath/config/mysql-handson-db \
+  plugin_name=mysql-legacy-database-plugin \
+  connection_url="{{username}}:{{password}}@tcp(127.0.0.1:3306)/" \
+  allowed_roles="role-handson" \
+  username="root" \
+  password="V9djjjWFd_wf"
+vault list dbpath/roles
+vault read dbpath/roles/role-handson
+
+
+
+
+■　Policy
+vault list sys/policy
+vault read sys/policy/default
+vault read sys/policy/root
+
+↓
+vault token create -policy=default
+Key                  Value
+---                  -----
+token                s.fwZUslP6j3XXrNbAyfHhuQ91
+token_accessor       NN5qUHmU4EtUWfAwFmYVkJNo
+token_duration       768h
+token_renewable      true
+token_policies       ["default"]
+identity_policies    []
+policies             ["default"]
+
+↓
+VAULT_TOKEN=s.fwZUslP6j3XXrNbAyfHhuQ91 vault list dbpath/roles
+Error listing dbpath/roles/: Error making API request.
+
+URL: GET http://127.0.0.1:8200/v1/dbpath/roles?list=true
+Code: 403. Errors:
+
+* 1 error occurred:
+        * permission denied
+
+↓
+vault list dbpath/roles
+Keys
+----
+role-handson
+
+
+↓
+cat > my-first-policy.hcl <<EOF
+path "dbpath/*" {
+  capabilities = [ "read", "list"]
+}
+EOF
+
+确认policy格式是否正确
+vault policy fmt my-policy.hcl
+写入policy
+vault policy write my-policy my-first-policy.hcl
+vault policy list
+vault policy read my-policy
+vault token create -policy=my-policy
+VAULT_TOKEN=s.fPPNGXTEMSBGLQWf82PqaT0i vault list dbpath/roles
+VAULT_TOKEN=s.fPPNGXTEMSBGLQWf82PqaT0i vault read dbpath/roles/role-handson
+VAULT_TOKEN=s.fPPNGXTEMSBGLQWf82PqaT0i vault kv list kv-path/
+VAULT_TOKEN=s.fPPNGXTEMSBGLQWf82PqaT0i vault write dbpath/roles/role-handson-4 \
+    db_name=mysql-handson-db \
+    creation_statements="CREATE USER '{{name}}'@'%' IDENTIFIED BY '{{password}}';GRANT SELECT ON handson.product TO '{{name}}'@'%';" \
+    default_ttl="30s" \
+    max_ttl="30s"
+エラーが出るはずです。
+
+dbpath/roles以下の直下のすべてのリソースに対してcreate,read,listの権限があるが、dbpath/roles/role-handsonだけには一切アクセスできないコンフィグファイル：
+path "dbpath/roles/+" {
+  capabilities = ["list","create", "read"]
+}
+
+path "dbpath/roles/role-handson" {
+  capabilities = ["deny"]
+}
+
+path "sys/*" {
+  capabilities = ["read", "list"]
+}
+
+■　Auth
+
+Authentication is the mechanism of assigning an identity to a Vault user. （发行Vault token的过程）
+For authentication Vault has multiple options or methods that can be enabled and used. 
+Vault always uses the same format for both authorization and policies. (athorization就是由policies来规定的)
+
+Vault Authe -> Authorization Flow
+All auth methods map identities back to the core policies that are configured with Vault.
+Vault itself is the single policy authority, unlike authentication where you can enable multiple auth methods. 
+Any enabled auth method must map identities to these core policies.
+
+下面看一下LDAP的auth过程
+
+===============================================================================================================
+■　Docker安装
+yum remove docker docker-client docker-client-latest docker-common docker-latest docker-latest-logrotate docker-logrotate docker-engine
+yum install -y yum-utils device-mapper-persistent-data lvm2
+yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+最新バージョンの Docker CE をインストールします。
+yum install -y docker-ce docker-ce-cli containerd.io
+systemctl start docker
+systemctl enable docker
+docker --version
+
+■　OpenLDAP安装
+Run OpenLDAP docker image:
+docker run --name my-openldap-container --detach osixia/openldap:1.3.0
+Do not forget to add the port mapping for both port 389 and 636 if you wish to access the ldap server from another machine.
+docker run -p 389:389 -p 636:636 --name my-openldap-container --detach osixia/openldap:1.3.0
+Either command starts a new container with OpenLDAP running inside.
+
+Let's make the first search in our LDAP container:
+docker exec my-openldap-container ldapsearch -x -H ldap://localhost -b dc=example,dc=org -D "cn=admin,dc=example,dc=org" -w admin
+
+把这个container删除：
+docker container ls -a
+docker ps
+CONTAINER ID        IMAGE                   COMMAND                 CREATED             STATUS              PORTS               NAMES
+644563a84a8b        osixia/openldap:1.3.0   "/container/tool/run"   46 minutes ago      Up 45 minutes       389/tcp, 636/tcp    my-openldap-container
+docker stop my-openldap-container
+docker rm my-openldap-container
+===============================================================================================================
+
+■　启动container
+./1.start_ldap_server.sh
+内容：
+docker run --hostname ldap.ourcorp.com \
+-p 389:389 -p 689:689 \
+-e LDAP_ORGANISATION=OurCorp Inc \
+-e LDAP_DOMAIN=ourcorp.com \
+-e LDAP_ADMIN_PASSWORD=hashifolk \
+-e LDAP_READONLY_USER=true \
+-e LDAP_READONLY_USER_USERNAME=read-only \
+-e LDAP_READONLY_USER_PASSWORD=devsecopsFTW \
+-v /ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom \
+--name openldap \
+--detach --copy-service
+然后可通过ldapsearch，ldapadd，ldapdelete，ldapmodify等参数查询、新增、删除、修改内容信息
+更多请参考https://github.com/osixia/docker-openldap
+注意-v, --volume=[]， 给容器挂载存储卷，挂载到容器的某个目录。在ldif里面保存了用文本格式记录的目录数据库的信息。
+
+
+在LDAP中每个条目均有自己的DN和RDN。DN是该条目在整个树中的唯一名称标识，RDN是条目在父节点下的唯一名称标识，如同文件系统中，带路径的文件名就是DN，文件名就是RDN。
+dn (distinguished name) ：一条记录的位置（每一个条目的唯一的标识名）
+dc (domain component) ：一条记录所属区域（哪一棵树，根节点）DNS域名
+ou (organization unit) ：一条记录所属组织（树下的分叉，部门名）
+cn/uid (common name / user ID) ：一条记录的名字/ID（叶子节点的名字，员工名）
+sn (surname)
+rdn (relative dn)
+basedn就是目录树的根，一般的形式：dc=baidu,dc=com,dc=cn
+示例：
+OU=徐汇区事业部,OU=上海分公司,DC=IFire47,DC=com 
+解读：域(IFire47.com)里的(ou)上海分公司里的(ou)(徐汇区事业部)
+CN=张三,OU=销售部,OU=北京昌平区事业部,OU=北京分公司,DC=IFire47,DC=com
+解读：域(IFire47.com)里的(ou)北京分公司里的(ou)北京昌平区事业部里的(ou)销售部的(user)张三
+
+
+■　查询
+./3.list_it_members.sh
+里面的命令为：
+docker exec openldap ldapsearch -x -H ldap://127.0.0.1 -b cn=it,ou=um_group,dc=ourcorp,dc=com -D cn=read-only,dc=ourcorp,dc=com -w devsecopsFTW 
+-b的意思是baseDN，指定了login之后从哪个OU开始。
+-D的意思是bindDN,指定了使用哪个DN作为user进行登录login操作。这里的read-only相当于一个专门做检索的管理员。
+输出结果（节选）：
+dn: cn=it,ou=um_group,dc=ourcorp,dc=com
+objectClass: groupOfUniqueNames
+objectClass: top
+cn: it
+uniqueMember: cn=bob,ou=people,dc=ourcorp,dc=com
+uniqueMember: cn=deepak,ou=people,dc=ourcorp,dc=com
+
+./3.list_members_by_group.sh
+里面的命令为：
+[r-user@test-vm auth_ldap]$ sudo docker exec openldap ldapsearch -x -H ldap://127.0.0.1 -b ou=um_group,dc=ourcorp,dc=com -D cn=read-only,dc=ourcorp,dc=com -w devsecopsFTW
+# extended LDIF
+#
+# LDAPv3
+# base <ou=um_group,dc=ourcorp,dc=com> with scope subtree
+# filter: (objectclass=*)
+# requesting: ALL
+#
+
+# um_group, ourcorp.com
+dn: ou=um_group,dc=ourcorp,dc=com
+objectClass: organizationalUnit
+objectClass: top
+ou: um_group
+
+# hr, um_group, ourcorp.com
+dn: cn=hr,ou=um_group,dc=ourcorp,dc=com
+objectClass: groupOfUniqueNames
+objectClass: top
+cn: hr
+uniqueMember: cn=frank,ou=people,dc=ourcorp,dc=com
+
+# it, um_group, ourcorp.com
+dn: cn=it,ou=um_group,dc=ourcorp,dc=com
+objectClass: groupOfUniqueNames
+objectClass: top
+cn: it
+uniqueMember: cn=bob,ou=people,dc=ourcorp,dc=com
+uniqueMember: cn=deepak,ou=people,dc=ourcorp,dc=com
+
+# finance, um_group, ourcorp.com
+dn: cn=finance,ou=um_group,dc=ourcorp,dc=com
+objectClass: groupOfUniqueNames
+objectClass: top
+cn: finance
+uniqueMember: cn=alice,ou=people,dc=ourcorp,dc=com
+
+# hackers, um_group, ourcorp.com
+dn: cn=hackers,ou=um_group,dc=ourcorp,dc=com
+objectClass: groupOfUniqueNames
+objectClass: top
+cn: hackers
+uniqueMember: cn=eve,ou=people,dc=ourcorp,dc=com
+
+# database, um_group, ourcorp.com
+dn: cn=database,ou=um_group,dc=ourcorp,dc=com
+objectClass: groupOfUniqueNames
+objectClass: top
+cn: database
+uniqueMember: cn=chun,ou=people,dc=ourcorp,dc=com
+
+# founders, um_group, ourcorp.com
+dn: cn=founders,ou=um_group,dc=ourcorp,dc=com
+objectClass: groupOfUniqueNames
+objectClass: top
+cn: founders
+uniqueMember: cn=alice,ou=people,dc=ourcorp,dc=com
+uniqueMember: cn=bob,ou=people,dc=ourcorp,dc=com
+
+# managers, um_group, ourcorp.com
+dn: cn=managers,ou=um_group,dc=ourcorp,dc=com
+objectClass: groupOfUniqueNames
+objectClass: top
+cn: managers
+uniqueMember: cn=deepak,ou=people,dc=ourcorp,dc=com
+uniqueMember: cn=frank,ou=people,dc=ourcorp,dc=com
+
+# security, um_group, ourcorp.com
+dn: cn=security,ou=um_group,dc=ourcorp,dc=com
+objectClass: groupOfUniqueNames
+objectClass: top
+cn: security
+uniqueMember: cn=eve,ou=people,dc=ourcorp,dc=com
+
+# marketing, um_group, ourcorp.com
+dn: cn=marketing,ou=um_group,dc=ourcorp,dc=com
+objectClass: groupOfUniqueNames
+objectClass: top
+cn: marketing
+uniqueMember: cn=chun,ou=people,dc=ourcorp,dc=com
+
+# rockstars, um_group, ourcorp.com
+dn: cn=rockstars,ou=um_group,dc=ourcorp,dc=com
+objectClass: groupOfUniqueNames
+objectClass: top
+cn: rockstars
+uniqueMember: cn=alice,ou=people,dc=ourcorp,dc=com
+
+# engineering, um_group, ourcorp.com
+dn: cn=engineering,ou=um_group,dc=ourcorp,dc=com
+objectClass: groupOfUniqueNames
+objectClass: top
+cn: engineering
+uniqueMember: cn=bob,ou=people,dc=ourcorp,dc=com
+uniqueMember: cn=chun,ou=people,dc=ourcorp,dc=com
+
+# search result
+search: 2
+result: 0 Success
+
+# numResponses: 13
+# numEntries: 12
+
+./3.list_security_members.sh
+里面的命令为
+[r-user@test-vm auth_ldap]$ sudo docker exec openldap ldapsearch -x -H ldap://127.0.0.1 -b cn=security,ou=um_group,dc=ourcorp,dc=com -D cn=read-only,dc=ourcorp,dc=com -w devsecopsFTW
+# extended LDIF
+#
+# LDAPv3
+# base <cn=security,ou=um_group,dc=ourcorp,dc=com> with scope subtree
+# filter: (objectclass=*)
+# requesting: ALL
+#
+
+# security, um_group, ourcorp.com
+dn: cn=security,ou=um_group,dc=ourcorp,dc=com
+objectClass: groupOfUniqueNames
+objectClass: top
+cn: security
+uniqueMember: cn=eve,ou=people,dc=ourcorp,dc=com
+
+# search result
+search: 2
+result: 0 Success
+
+# numResponses: 2
+# numEntries: 1
+
+对于LDAP的概念稍作一些解释：
+objectClass有着严格的等级之分，最顶层是top和alias。例如，organizationalPerson这个objectClass就隶属于person，而person又隶属于top。
+objectClass可分为以下3类：
+结构型（Structural）：如person和organizationUnit；
+辅助型（Auxiliary）：如extensibeObject；
+抽象型（Abstract）：如top，抽象型的objectClass不能直接使用。
+在OpenLDAP的schema中定义了很多objectClass，下面列出部分常用的objectClass的名称。
+account
+alias
+dcobject
+domain
+ipHost
+organization
+organizationalRole
+organizationalUnit
+person
+organizationalPerson
+inetOrgPerson
+residentialPerson
+posixAccount
+posixGroup
+
+groupOfNames stores its members in the Member attribute using FDN as the value.
+groupOfUniqueNames stores its members in the uniqueMember attribute also using FDN as value.
+uniqueMember attribute however is designed to be able to hold an extra unique identifier to tell the difference between two FDN's who have the same value in a group.
+Multiple objects, at different times, can be named by the same FDN. 
+
+
+
+■　Vault側でLDAP auth methodを設定します。
+The mapping of groups and users in LDAP to Vault policies is managed by using the users/ and groups/ paths.
+
+./_2.enable_auth_ldap.sh
+こちらの中身はこうなっています。
+vault auth enable -path=ldap-um ldap
+echo "Configure Unique Member group lookups"
+# Using group of unique names lookups
+vault write auth/ldap-um/config \
+    url="${LDAP_URL}" \
+    binddn="${BIND_DN}" \
+    bindpass="${BIND_PW}" \
+    userdn="${USER_DN}" \
+    userattr="${USER_ATTR}" \
+    groupdn="${GROUP_DN}" \
+    groupfilter="${UM_GROUP_FILTER}" \
+    groupattr="${UM_GROUP_ATTR}" \
+    insecure_tls=true
+
+vault write auth/ldap-um/config url=ldap://127.0.0.1 \
+binddn=cn=read-only,dc=ourcorp,dc=com \
+bindpass=devsecopsFTW \
+userdn=ou=people,dc=ourcorp,dc=com \
+userattr=cn \
+groupdn=ou=um_group,dc=ourcorp,dc=com \
+groupfilter=(&(objectClass=groupOfUniqueNames)(uniqueMember={{.UserDN}})) \
+groupattr=cn insecure_tls=true
+
+
+对于binding参数有如下的解释：
+There are two alternate methods of resolving the user object used to authenticate the end user: Search or User Principal Name. When using Search, the bind can be either anonymous or authenticated. User Principal Name is a method of specifying users supported by Active Directory. 
+bindDN为执行bind操作的object
+bindpass为上面object的密码
+userDN为baseDN，即为检索的起点
+userattr为验证身份时使用的用户名的attribute。Examples: sAMAccountName, cn, uid
+groupfilter (string, optional) - Go template used when constructing the group membership query. The template can access the following context variables: [UserDN, Username]. The default is (|(memberUid={{.Username}})(member={{.UserDN}})(uniqueMember={{.UserDN}})), which is compatible with several common directory schemas. To support nested group resolution for Active Directory, instead use the following query: (&(objectClass=group)(member:1.2.840.113556.1.4.1941:={{.UserDN}})).
+groupDN为LDAP检索group member时的base，可以是根。
+groupattr为groupfilter返回的object进行成员枚举时的LDAP attribute。如果是group object，使用cn。如果是user object，使用memberOf。缺省为cn。
+Note: When using Authenticated Search for binding parameters (see above) the distinguished name defined for binddn is used for the group search. Otherwise, the authenticating user is used to perform the group search.
+
+LDAP認証が作成されていることを確認
+vault auth list
+
+■　创建kv类型的secrets
+vault secrets disable kv-path
+vault secrets enable -path=kv-path kv
+./_4.populage_kvs.sh
+中身はこうなっています。
+#!/bin/bash
+vault write kv-path/ldap/it password="foo"
+vault write kv-path/ldap/security password="bar"
+vault write kv-path/ldap/engineering password="hoge"
+ITグループ向け、Securityグループ向け、Engineeringグループ向けの３つのシークレットが書き込まれました。
+
+vault kv list kv-path/ldap
+Keys
+----
+engineering
+it
+security
+
+■　创建两个policy
+ITグループ向け (it_policy.hcl)：
+
+# Policy for IT peopld
+
+path "kv-path/ldap" {
+	capabilities = [ "list" ]
+}
+
+path "kv-path/ldap/it" {
+	capabilities = [ "create", "read", "update", "delete", "list" ]
+}
+
+Securityグループ向け (security_policy.hcl)：
+
+# Policy for security people
+
+path "secret/ldap" {
+	capabilities = [ "list" ]
+}
+
+path "secret/ldap/security" {
+	capabilities = [ "create", "read", "update", "delete", "list" ]
+}
+
+
+将policy应用在LDAP的group上
+./5.write_associate_policy.s
+内容：
+# create policies
+vault policy write it_policy it_policy.hcl
+vault policy write security_policy security_policy.hcl
+# set up uniqueMember group logins
+vault write auth/ldap-um/groups/it policies=it_policy
+vault write auth/ldap-um/groups/security policies=security_policy
+相当于给it和security组的用户分别进行赋权，即authorization。
+
+
+■　使用LDAP认证进行登录
+./6.login_it_member.sh
+内容：
+vault login -method=ldap -path=ldap-um username=deepak password=thispasswordsucks
+Success! You are now authenticated. The token information displayed below
+is already stored in the token helper. You do NOT need to run "vault login"
+again. Future Vault requests will automatically use this token.
+
+Key                    Value
+---                    -----
+token                  s.C0e2zts99lvhMqTM4YcuFuS8
+token_accessor         EKYY5gKcpIysxOPOYhJiYAfs
+成功并且得到一枚token，查看当前的token：
+vault token lookup
+Key                 Value
+---                 -----
+accessor            EKYY5gKcpIysxOPOYhJiYAfs
+creation_time       1582185890
+creation_ttl        768h
+display_name        ldap-um-deepak
+entity_id           2193b5ca-9c61-9b48-30d0-f45f622916de
+expire_time         2020-03-23T17:04:50.74684711+09:00
+explicit_max_ttl    0s
+id                  s.C0e2zts99lvhMqTM4YcuFuS8
+issue_time          2020-02-20T17:04:50.746856429+09:00
+meta                map[username:deepak]
+num_uses            0
+orphan              true
+path                auth/ldap-um/login/deepak
+policies            [default it_policy]
+renewable           true
+ttl                 767h18m20s
+type                service
+从用户名deepak和密码就可以自动对应到it group，适用it_policy。
+在ldif/2_um_groups.ldif文件中有如下内容规定了deepak：
+dn: cn=it,ou=um_group,dc=ourcorp,dc=com
+objectClass: groupOfUniqueNames
+objectClass: top
+cn: it
+uniqueMember: cn=bob,ou=people,dc=ourcorp,dc=com
+uniqueMember: cn=deepak,ou=people,dc=ourcorp,dc=com
+
+dn: cn=managers,ou=um_group,dc=ourcorp,dc=com
+objectClass: groupOfUniqueNames
+objectClass: top
+cn: managers
+uniqueMember: cn=deepak,ou=people,dc=ourcorp,dc=com
+uniqueMember: cn=frank,ou=people,dc=ourcorp,dc=com
+
+同理下面的用户eve也自动对应security group。
+这些group信息都是保存在LDAP中，然后通过Vault的policy规定分别读取kv-path中的机密数据。
+
+同様にSecurityグループでのログインも行ってください。
+$ ./7.login_security_member.sh
+内容：
+vault login -method=ldap -path=ldap-um username=eve password=thispasswordsucks
+Success! You are now authenticated. The token information displayed below
+is already stored in the token helper. You do NOT need to run "vault login"
+again. Future Vault requests will automatically use this token.
+
+Key                    Value
+---                    -----
+token                  s.BGGBo706mtcoiBpg06f8k51d
+token_accessor         AV9MCziKnSB2eYGEMFZg4gkN
+
+
+$ export IT_TOKEN=s.C0e2zts99lvhMqTM4YcuFuS8  # ITトークンの変数
+$ export SECURITY_TOKEN=s.BGGBo706mtcoiBpg06f8k51d　# Securityトークンの変数
+
+$ VAULT_TOKEN=$IT_TOKEN vault <コマンド>  # コマンドをITトークンで実行
+$ VAULT_TOKEN=$SECURITY_TOKEN vault <コマンド>  # コマンドをSecurityトークンで実行
+VAULT_TOKEN=$IT_TOKEN vault read kv-path/ldap/it
+VAULT_TOKEN=$SECURITY_TOKEN vault read kv-path/ldap/security
+
+
+
+
+
+
+
+
+■　使用HTTP APIs进行authentication
+
+curl http://localhost:8200/v1/sys/health | jq
+
+curl http://127.0.0.1:8200/v1/sys/init
+vault server -config=config.hcl
+输出root token和"keys_base64"。
+curl \
+    --request POST \
+    --data '{"secret_shares": 1, "secret_threshold": 1}' \
+    http://127.0.0.1:8200/v1/sys/init | jq
+export VAULT_DEV_ROOT_TOKEN_ID="xxx"
+
+使用"keys_base64"进行Unseal操作。
+curl \
+    --request POST \
+    --data '{"key": "xxx"}' \
+    http://127.0.0.1:8200/v1/sys/unseal | jq
+
+允许使用cURL具有和CLI一样的功能进行AppRole auth method。
+vault auth enable -output-curl-string approle
+
+允许使用Vault API进行AppRole auth method。
+curl \
+    --header "X-Vault-Token: $VAULT_DEV_ROOT_TOKEN_ID" \
+    --request POST \
+    --data '{"type": "approle"}' \
+    http://127.0.0.1:8200/v1/sys/auth/approle
+
+用/sys/policies/acl endpoint和API的方式创建policy，效果和CLI一样。
+curl \
+    --header "X-Vault-Token: $VAULT_DEV_ROOT_TOKEN_ID" \
+    --request PUT \
+    --data '{"policy":"# Dev servers have version 2 of KV secrets engine mounted by default, so will\n# need these paths to grant permissions:\npath \"kv-path2/data/*\" {\n  capabilities = [\"create\", \"update\"]\n}\n\npath \"secret/data/foo\" {\n  capabilities = [\"read\"]\n}\n"}' \
+    http://127.0.0.1:8200/v1/sys/policies/acl/my-policy
+
+因为my-policy需要kv-path2/data这条路径，先创建这个secrets engine，同样使用API进行。
+curl \
+    --header "X-Vault-Token: $VAULT_DEV_ROOT_TOKEN_ID" \
+    --request POST \
+    --data '{ "type":"kv-v2" }' \
+    http://127.0.0.1:8200/v1/sys/mounts/kv-path2
+
+在AppRole：my-role角色下发布的token与my-policy进行绑定。
+curl \
+    --header "X-Vault-Token: $VAULT_DEV_ROOT_TOKEN_ID" \
+    --request POST \
+    --data '{"policies": ["my-policy"]}' \
+    http://127.0.0.1:8200/v1/auth/approle/role/my-role
+
+获取my-role的RoleID。
+curl \
+    --header "X-Vault-Token: $VAULT_DEV_ROOT_TOKEN_ID" \
+     http://127.0.0.1:8200/v1/auth/approle/role/my-role/role-id | jq -r ".data"
+{
+  "role_id": "bd072f88-c360-486c-d45b-502e248742a8"
+}
+
+在my-role下面创建新的SecretID。
+curl \
+    --header "X-Vault-Token: $VAULT_DEV_ROOT_TOKEN_ID" \
+    --request POST \
+    http://127.0.0.1:8200/v1/auth/approle/role/my-role/secret-id | jq -r ".data"
+{
+  "secret_id": "f945fd76-0165-208a-ef41-281635ba9b7d",
+  "secret_id_accessor": "e99f3fbe-e5e0-bc9b-9d66-8d355aa5f2d4"
+}
+
+然后获取新的Vault token。
+curl --request POST \
+       --data '{"role_id": "bd072f88-c360-486c-d45b-502e248742a8", "secret_id": "f945fd76-0165-208a-ef41-281635ba9b7d"}' \
+       http://127.0.0.1:8200/v1/auth/approle/login | jq -r ".auth"
+{
+  "client_token": "s.mpg4dHXIH35fuSfZc5SkdJsL",
+  "accessor": "x51exsNLOGleaDwoxkaFf9zr",
+  "policies": [
+    "default",
+    "my-policy"
+  ],
+  "token_policies": [
+    "default",
+    "my-policy"
+  ],
+  "metadata": {
+    "role_name": "my-role"
+  },
+  "lease_duration": 2764800,
+  "renewable": true,
+  "entity_id": "e315a5dd-4ee2-6b64-e760-0ae0f35e6602",
+  "token_type": "service",
+  "orphan": true
+}
+这个token具有my-policy的所有权限。
+export VAULT_TOKEN="s.mpg4dHXIH35fuSfZc5SkdJsL"
+curl \
+    --header "X-Vault-Token: $VAULT_TOKEN" \
+    --request POST \
+    --data '{ "data": {"password": "my-long-password"} }' \
+    http://127.0.0.1:8200/v1/kv-path2/data/creds | jq -r ".data"
+{
+  "created_time": "2020-02-21T07:35:22.473237478Z",
+  "deletion_time": "",
+  "destroyed": false,
+  "version": 1
+}
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,802 @@
+=========================================================================================================
+找另外一台主机执行：
+[r-user@test-vm ~]$ consul tls ca create
+==> Saved consul-agent-ca.pem
+==> Saved consul-agent-ca-key.pem
+
+The CA certificate, consul-agent-ca.pem, contains the public key necessary to validate Consul certificates 
+and therefore must be distributed to every node that runs a consul agent.
+The CA key, consul-agent-ca-key.pem, will be used to sign certificates for Consul nodes and must be kept private.
+
+在同样的主机上执行：
+[r-user@test-vm ~]$ consul tls cert create -server
+==> WARNING: Server Certificates grants authority to become a
+    server and access all state in the cluster including root keys
+    and all ACL tokens. Do not distribute them to production hosts
+    that are not server nodes. Store them as securely as CA keys.
+==> Using consul-agent-ca.pem and consul-agent-ca-key.pem
+==> Saved dc1-server-consul-0.pem
+==> Saved dc1-server-consul-0-key.pem
+重复这个命令一直到所有server都有自己的certificate。
+注意datacenter名(dc1)和domain名(consul)都是缺省的，不一样的话自行修改。
+[r-user@test-vm ~]$ scp -i sample-key-001.pem ./consul-agent-ca.pem r-user@172.18.1.102:/home/r-user
+consul-agent-ca.pem                                               100% 1070   356.9KB/s   00:00
+[r-user@test-vm ~]$ scp -i sample-key-001.pem ./consul-agent-ca.pem r-user@172.18.1.110:/home/r-user
+consul-agent-ca.pem                                               100% 1070   373.0KB/s   00:00
+[r-user@test-vm ~]$ scp -i sample-key-001.pem ./consul-agent-ca.pem r-user@172.18.1.118:/home/r-user
+consul-agent-ca.pem                                               100% 1070   449.1KB/s   00:00
+[r-user@test-vm ~]$ scp -i sample-key-001.pem ./dc1-server-consul-0* r-user@172.18.1.102:/home/r-user
+dc1-server-consul-0-key.pem                                       100%  227    81.9KB/s   00:00
+dc1-server-consul-0.pem                                           100%  964   341.2KB/s   00:00
+[r-user@test-vm ~]$ scp -i sample-key-001.pem ./dc1-server-consul-1* r-user@172.18.1.110:/home/r-user
+dc1-server-consul-1-key.pem                                       100%  227    81.7KB/s   00:00
+dc1-server-consul-1.pem                                           100%  964   399.2KB/s   00:00
+[r-user@test-vm ~]$ scp -i sample-key-001.pem ./dc1-server-consul-2* r-user@172.18.1.118:/home/r-user
+dc1-server-consul-2-key.pem                                       100%  227   107.1KB/s   00:00
+dc1-server-consul-2.pem                                           100%  964   543.7KB/s   00:00
+[r-user@test-vm ~]$
+需要分别考入/etc/consul.d/目录，不然启动consul服务的时候会发生permission denied错误。
+=========================================================================================================
+
+
+ssh -i ./sample-key-001.pem r-user@172.18.1.113
+
+CONSUL_VERSION="1.7.1"
+curl --silent --remote-name https://releases.hashicorp.com/consul/${CONSUL_VERSION}/consul_${CONSUL_VERSION}_linux_amd64.zip
+curl --silent --remote-name https://releases.hashicorp.com/consul/${CONSUL_VERSION}/consul_${CONSUL_VERSION}_SHA256SUMS
+curl --silent --remote-name https://releases.hashicorp.com/consul/${CONSUL_VERSION}/consul_${CONSUL_VERSION}_SHA256SUMS.sig
+
+[r-user@c1 ~]$ ll
+total 38724
+-rw-rw-r-- 1 r-user r-user 39641735 Feb 25 14:55 consul_1.7.1_linux_amd64.zip
+-rw-rw-r-- 1 r-user r-user     1148 Feb 25 14:55 consul_1.7.1_SHA256SUMS
+-rw-rw-r-- 1 r-user r-user      310 Feb 25 14:55 consul_1.7.1_SHA256SUMS.sig
+
+[r-user@c1 ~]$
+
+[r-user@c1 ~]$ unzip consul_${CONSUL_VERSION}_linux_amd64.zip
+Archive:  consul_1.7.1_linux_amd64.zip
+  inflating: consul
+[r-user@c1 ~]$ sudo chown root:root consul
+[r-user@c1 ~]$ sudo mv consul /usr/local/bin/
+[r-user@c1 ~]$ consul --version
+Consul v1.7.1
+Protocol 2 spoken by default, understands 2 to 3 (agent will automatically use protocol >2 when speaking to compatible agents)
+
+[r-user@c1 ~]$ consul -autocomplete-install
+[r-user@c1 ~]$ complete -C /usr/local/bin/consul consul
+
+创建唯一的，non-privileged用户使用Consul
+[r-user@c1 ~]$ sudo useradd --system --home /etc/consul.d --shell /bin/false consul
+[r-user@c1 ~]$ sudo mkdir --parents /opt/consul
+[r-user@c1 ~]$ sudo chown --recursive consul:consul /opt/consul
+非缺省值必须在systemd的配置文件中设定
+[r-user@c1 ~]$ sudo touch /etc/systemd/system/consul.service
+[r-user@c1 ~]$ sudo vi  /etc/systemd/system/consul.service
+[r-user@c1 ~]$ cat /etc/systemd/system/consul.service
+[Unit]
+Description="HashiCorp Consul - A service mesh solution"
+Documentation=https://www.consul.io/
+Requires=network-online.target
+After=network-online.target
+ConditionFileNotEmpty=/etc/consul.d/consul.hcl
+
+[Service]
+Type=notify
+User=consul
+Group=consul
+ExecStart=/usr/local/bin/consul agent -config-dir=/etc/consul.d/
+ExecReload=/usr/local/bin/consul reload
+KillMode=process
+Restart=on-failure
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+[r-user@c1 ~]$
+
+
+■　Consul Server配置文件：
+通用的配置文件
+[r-user@c1 ~]$ sudo mkdir --parents /etc/consul.d
+[r-user@c1 ~]$ sudo touch /etc/consul.d/consul.hcl
+[r-user@c1 ~]$ sudo chown --recursive consul:consul /etc/consul.d
+[r-user@c1 ~]$ sudo chmod 640 /etc/consul.d/consul.hcl
+[r-user@c1 ~]$ consul keygen
+
+KjVKM2nOilFSrCLIfxl3wyTxOv1OUiSshvHhi/Vu06I= (c-test)
+
+
+TNhtdtqf9h0rDYHkhSPjPhWezkcUkd4sOH33pj/50zU=　(cc-1)
+O5P0+GvAkCLfhPC9eeZuNKAYhbYeGhM927L+AqEgl1M=　(cc-2)
+nZrYTmemyNjXKL77XW/2/v1WS1QOSVNqaKUlCPk6jas=　(cc-3)
+
+QZviS7PgZBnNhX+SaP2w1smY3BH3jwoxXBrwrizyBb4= (client v1)
+
+
+[r-user@c1 ~]$ sudo vi /etc/consul.d/consul.hcl
+[r-user@cc-1 ~]$ sudo cat /etc/consul.d/consul.hcl
+datacenter = "dc1"
+addresses {
+  https = "172.18.1.102",
+  http  = "172.18.1.102"
+}
+data_dir = "/opt/consul"
+server = true
+encrypt = "TNhtdtqf9h0rDYHkhSPjPhWezkcUkd4sOH33pj/50zU="
+retry_join=[
+            "172.18.1.102",
+            "172.18.1.110",
+            "172.18.1.118"
+           ]
+performance {
+  raft_multiplier = 1
+}
+
+
+注意retry_join有这样几个选择：
+# Using a DNS entry
+$ consul agent -retry-join "consul.domain.internal"
+
+# Using IPv4
+$ consul agent -retry-join "10.0.4.67"
+
+# Using IPv6
+$ consul agent -retry-join "[::1]:8301"
+
+# Using multiple addresses
+$ consul agent -retry-join "consul.domain.internal" -retry-join "10.0.4.67"
+
+下面配置server端专有的配置文件
+[r-user@c1 ~]$ sudo touch /etc/consul.d/server.hcl
+[r-user@c1 ~]$ sudo chmod 640 /etc/consul.d/server.hcl
+[r-user@c1 ~]$ sudo chown --recursive consul:consul /etc/consul.d
+[r-user@c1 ~]$ sudo vi /etc/consul.d/server.hcl
+[r-user@c1 ~]$ sudo cat /etc/consul.d/server.hcl
+server = true
+bootstrap_expect = 3
+ui = true
+verify_incoming = true
+verify_outgoing = true
+verify_server_hostname = true
+ca_file = "/etc/consul.d/consul-agent-ca.pem"
+cert_file = "/etc/consul.d/dc1-server-consul-2.pem"
+key_file = "/etc/consul.d/dc1-server-consul-2-key.pem"
+auto_encrypt {
+  allow_tls = true
+}
+ports {
+  dns = 8600,
+  http = -1,
+  https = 8501
+}
+注意http=-1的意思是禁止了HTTP API，实测此时无法使用CLI进行操作了。需要CLI的话改为8500。
+
+■　Consul Client配置文件：
+所有的clients可以直接使用上面的consul.hcl配置文件即可。
+如果有其它主机专用的配置identifiers，可以单独进行配置。
+[r-user@c1 ~]$ sudo vi /etc/consul.d/consul.hcl
+[r-user@c-test ~]$ sudo cat /etc/consul.d/consul.hcl
+datacenter = "dc1"
+addresses {
+  https = "172.18.1.104",
+  http  = "172.18.1.104"
+}
+data_dir = "/opt/consul"
+encrypt = "TNhtdtqf9h0rDYHkhSPjPhWezkcUkd4sOH33pj/50zU="
+retry_join=[
+            "172.18.1.102",
+            "172.18.1.110",
+            "172.18.1.118"
+           ]
+performance {
+  raft_multiplier = 1
+}
+verify_incoming = true
+verify_outgoing = true
+verify_server_hostname = true
+ca_file = "/etc/consul.d/consul-agent-ca.pem"
+cert_file = "/etc/consul.d/dc1-client-consul-0.pem"
+key_file = "/etc/consul.d/dc1-client-consul-0-key.pem"
+
+auto_encrypt {
+  allow_tls = true
+}
+
+#ports {
+#  http = -1
+#  https = 7501
+#}
+
+
+■　启动Consul
+[r-user@c1 ~]$ sudo systemctl enable consul
+Created symlink from /etc/systemd/system/multi-user.target.wants/consul.service to /etc/systemd/system/consul.service.
+[r-user@c1 ~]$ sudo systemctl start consul
+
+[r-user@cc-1 ~]$ sudo systemctl status consul -l
+● consul.service - "HashiCorp Consul - A service mesh solution"
+   Loaded: loaded (/etc/systemd/system/consul.service; enabled; vendor preset: disabled)
+   Active: active (running) since Thu 2020-02-27 09:47:10 JST; 5s ago
+     Docs: https://www.consul.io/
+ Main PID: 2093 (consul)
+   CGroup: /system.slice/consul.service
+           └─2093 /usr/local/bin/consul agent -config-dir=/etc/consul.d/
+
+Feb 27 09:47:10 cc-1 consul[2093]: 2020-02-27T09:47:10.770+0900 [INFO]  agent.server: Handled event for server in area: event=member-join server=cc-3.dc1 area=wan
+Feb 27 09:47:10 cc-1 consul[2093]: 2020-02-27T09:47:10.770+0900 [INFO]  agent.server: Handled event for server in area: event=member-join server=cc-2.dc1 area=wan
+Feb 27 09:47:10 cc-1 consul[2093]: 2020-02-27T09:47:10.775+0900 [WARN]  agent.server.memberlist.lan: memberlist: Refuting an alive message for 'cc-1' (172.18.1.102:8301) meta:([255 142 164 114 111 108 101 166 99 111 110 115 117 108 167 118 115 110 95 109 97 120 161 51 168 114 97 102 116 95 118 115 110 161 51 166 101 120 112 101 99 116 161 51 167 117 115 101 95 116 108 115 161 49 173 119 97 110 95 106 111 105 110 95 112 111 114 116 164 56 51 48 50 167 115 101 103 109 101 110 116 160 162 105 100 218 0 36 52 49 99 48 98 97 53 54 45 53 51 98 53 45 51 49 97 57 45 57 100 102 50 45 56 49 99 98 101 51 55 98 50 57 51 53 163 118 115 110 161 50 167 118 115 110 95 109 105 110 161 50 164 112 111 114 116 164 56 51 48 48 164 97 99 108 115 161 48 162 100 99 163 100 99 49 165 98 117 105 108 100 174 49 46 55 46 49 58 50 99 102 48 97 51 99 56] VS [255 142 164 112 111 114 116 164 56 51 48 48 166 101 120 112 101 99 116 161 51 173 119 97 110 95 106 111 105 110 95 112 111 114 116 164 56 51 48 50 162 105 100 218 0 36 52 49 99 48 98 97 53 54 45 53 51 98 53 45 51 49 97 57 45 57 100 102 50 45 56 49 99 98 101 51 55 98 50 57 51 53 165 98 117 105 108 100 174 49 46 55 46 49 58 50 99 102 48 97 51 99 56 164 97 99 108 115 161 48 164 114 111 108 101 166 99 111 110 115 117 108 163 118 115 110 161 50 168 114 97 102 116 95 118 115 110 161 51 162 100 99 163 100 99 49 167 115 101 103 109 101 110 116 160 167 118 115 110 95 109 105 110 161 50 167 118 115 110 95 109 97 120 161 51 167 117 115 101 95 116 108 115 161 49]), vsn:([1 5 2 2 5 4] VS [1 5 2 2 5 4])
+Feb 27 09:47:10 cc-1 consul[2093]: 2020-02-27T09:47:10.776+0900 [INFO]  agent.server.serf.lan: serf: EventMemberJoin: v1 172.18.1.103
+Feb 27 09:47:10 cc-1 consul[2093]: 2020-02-27T09:47:10.776+0900 [INFO]  agent.server.serf.lan: serf: EventMemberJoin: cc-2 172.18.1.110
+Feb 27 09:47:10 cc-1 consul[2093]: 2020-02-27T09:47:10.776+0900 [INFO]  agent.server.serf.lan: serf: EventMemberJoin: cc-3 172.18.1.118
+Feb 27 09:47:10 cc-1 consul[2093]: 2020-02-27T09:47:10.776+0900 [INFO]  agent.server: Adding LAN server: server="cc-2 (Addr: tcp/172.18.1.110:8300) (DC: dc1)"
+Feb 27 09:47:10 cc-1 consul[2093]: 2020-02-27T09:47:10.776+0900 [INFO]  agent.server: Adding LAN server: server="cc-3 (Addr: tcp/172.18.1.118:8300) (DC: dc1)"
+Feb 27 09:47:10 cc-1 consul[2093]: 2020-02-27T09:47:10.776+0900 [INFO]  agent.server.serf.lan: serf: Re-joined to previously known node: v1: 172.18.1.103:8301
+Feb 27 09:47:11 cc-1 consul[2093]: 2020-02-27T09:47:11.104+0900 [WARN]  agent: Node info update blocked by ACLs: node=41c0ba56-53b5-31a9-9df2-81cbe37b2935 accessorID=
+
+[r-user@cc-1 ~]$
+[r-user@cc-1 ~]$
+[r-user@cc-1 ~]$ consul members
+Node  Address            Status  Type    Build  Protocol  DC   Segment
+cc-1  172.18.1.102:8301  alive   server  1.7.1  2         dc1  <all>
+cc-2  172.18.1.110:8301  alive   server  1.7.1  2         dc1  <all>
+cc-3  172.18.1.118:8301  alive   server  1.7.1  2         dc1  <all>
+v1    172.18.1.103:8301  alive   client  1.7.1  2         dc1  <default>
+[r-user@cc-1 ~]$
+
+
+■　ACL配置
+Set up ACL for Vault access to Consul >= 1.4.x
+
+在3台server和所有client上执行：
+[r-user@cc-1 ~]$ sudo vi /etc/consul.d/acl.hcl
+内容：
+acl {
+ enabled = true
+ default_policy = "deny"
+ enable_token_persistence = true
+}
+[r-user@cc-1 ~]$ sudo systemctl restart consul
+
+● consul.service - "HashiCorp Consul - A service mesh solution"
+   Loaded: loaded (/etc/systemd/system/consul.service; enabled; vendor preset: disabled)
+   Active: active (running) since Thu 2020-02-27 10:03:33 JST; 9s ago
+     Docs: https://www.consul.io/
+ Main PID: 2179 (consul)
+   CGroup: /system.slice/consul.service
+           └─2179 /usr/local/bin/consul agent -config-dir=/etc/consul.d/
+
+Feb 27 10:03:33 cc-1 consul[2179]: 2020-02-27T10:03:33.778+0900 [INFO]  agent.server.serf.lan: serf: EventMemberJoin: v1 172.18.1.103
+Feb 27 10:03:33 cc-1 consul[2179]: 2020-02-27T10:03:33.778+0900 [INFO]  agent.server: Handled event for server in area: event=member-join server=cc-3.dc1 area=wan
+Feb 27 10:03:33 cc-1 consul[2179]: 2020-02-27T10:03:33.778+0900 [WARN]  agent.server.memberlist.lan: memberlist: Refuting an alive message for 'cc-1' (172.18.1.102:8301) meta:([255 142 164 112 111 114 116 164 56 51 48 48 166 101 120 112 101 99 116 161 51 173 119 97 110 95 106 111 105 110 95 112 111 114 116 164 56 51 48 50 162 105 100 218 0 36 52 49 99 48 98 97 53 54 45 53 51 98 53 45 51 49 97 57 45 57 100 102 50 45 56 49 99 98 101 51 55 98 50 57 51 53 165 98 117 105 108 100 174 49 46 55 46 49 58 50 99 102 48 97 51 99 56 164 97 99 108 115 161 48 164 114 111 108 101 166 99 111 110 115 117 108 163 118 115 110 161 50 168 114 97 102 116 95 118 115 110 161 51 162 100 99 163 100 99 49 167 115 101 103 109 101 110 116 160 167 118 115 110 95 109 105 110 161 50 167 118 115 110 95 109 97 120 161 51 167 117 115 101 95 116 108 115 161 49] VS [255 142 162 105 100 218 0 36 52 49 99 48 98 97 53 54 45 53 51 98 53 45 51 49 97 57 45 57 100 102 50 45 56 49 99 98 101 51 55 98 50 57 51 53 165 98 117 105 108 100 174 49 46 55 46 49 58 50 99 102 48 97 51 99 56 173 119 97 110 95 106 111 105 110 95 112 111 114 116 164 56 51 48 50 164 114 111 108 101 166 99 111 110 115 117 108 167 115 101 103 109 101 110 116 160 167 118 115 110 95 109 97 120 161 51 168 114 97 102 116 95 118 115 110 161 51 167 117 115 101 95 116 108 115 161 49 164 112 111 114 116 164 56 51 48 48 166 101 120 112 101 99 116 161 51 164 97 99 108 115 161 50 162 100 99 163 100 99 49 163 118 115 110 161 50 167 118 115 110 95 109 105 110 161 50]), vsn:([1 5 2 2 5 4] VS [1 5 2 2 5 4])
+Feb 27 10:03:33 cc-1 consul[2179]: 2020-02-27T10:03:33.778+0900 [INFO]  agent.server.serf.lan: serf: EventMemberJoin: cc-3 172.18.1.118
+Feb 27 10:03:33 cc-1 consul[2179]: 2020-02-27T10:03:33.778+0900 [INFO]  agent.server: Handled event for server in area: event=member-join server=cc-2.dc1 area=wan
+Feb 27 10:03:33 cc-1 consul[2179]: 2020-02-27T10:03:33.778+0900 [INFO]  agent.server: Adding LAN server: server="cc-2 (Addr: tcp/172.18.1.110:8300) (DC: dc1)"
+Feb 27 10:03:33 cc-1 consul[2179]: 2020-02-27T10:03:33.778+0900 [INFO]  agent.server: Adding LAN server: server="cc-3 (Addr: tcp/172.18.1.118:8300) (DC: dc1)"
+Feb 27 10:03:33 cc-1 consul[2179]: 2020-02-27T10:03:33.778+0900 [INFO]  agent.server.serf.lan: serf: Re-joined to previously known node: cc-2: 172.18.1.110:8301
+Feb 27 10:03:33 cc-1 consul[2179]: 2020-02-27T10:03:33.849+0900 [INFO]  agent: Synced node info
+Feb 27 10:03:40 cc-1 consul[2179]: 2020-02-27T10:03:40.783+0900 [WARN]  agent.server.rpc: Non-TLS connection attempted with VerifyIncoming set: conn=from=172.18.1.103:47128
+
+
+在1台server上执行：
+[r-user@cc-1 ~]$ consul acl bootstrap
+AccessorID:       e6bda925-4759-b1b0-5905-cf376a84fa9a
+SecretID:         8211bb31-887a-ee99-8c08-cadc92edf30e
+Description:      Bootstrap Token (Global Management)
+Local:            false
+Create Time:      2020-02-25 17:35:30.671615931 +0900 JST
+Policies:
+   00000000-0000-0000-0000-000000000001 - global-management
+
+在所有agent执行：
+[r-user@cc-1 ~]$ export CONSUL_MGMT_TOKEN="8211bb31-887a-ee99-8c08-cadc92edf30e"
+建立下面的环境变量就不用每次CLI里指定token了。
+[r-user@cc-1 ~]$ export CONSUL_HTTP_TOKEN="8211bb31-887a-ee99-8c08-cadc92edf30e"
+
+在1台agent上执行：
+[r-user@cc-1 ~]$ vi node-policy.hcl
+[r-user@cc-1 ~]$ cat node-policy.hcl
+agent_prefix "" {
+ policy = "write"
+}
+node_prefix "" {
+ policy = "write"
+}
+service_prefix "" {
+ policy = "read"
+}
+session_prefix "" {
+ policy = "read"
+}
+[r-user@cc-1 ~]$ consul acl policy create -name node-policy -rules @node-policy.hcl
+ID:           d97aac97-d6c7-ff46-006e-34d681134f97
+Name:         node-policy
+Description:
+Datacenters:
+Rules:
+agent_prefix "" {
+ policy = "write"
+}
+node_prefix "" {
+ policy = "write"
+}
+service_prefix "" {
+ policy = "read"
+}
+session_prefix "" {
+ policy = "read"
+}
+
+在所有agent上执行：
+[r-user@cc-1 ~]$ consul acl token create -description "node token" -policy-name node-policy
+AccessorID:       61e6d925-ccb3-ff41-fc53-7033a5806aab
+SecretID:         69ef4558-866d-f335-df81-35fe4a9be5eb
+Description:      node token
+Local:            false
+Create Time:      2020-02-27 11:55:24.399523847 +0900 JST
+Policies:
+   d97aac97-d6c7-ff46-006e-34d681134f97 - node-policy
+[r-user@cc-2 ~]$ consul acl token create -description "node token" -policy-name node-policy
+AccessorID:       b08c5803-d62f-441e-989d-6feab417534b
+SecretID:         0b2d4445-f3c8-9a1e-e0d6-89e593f2a977
+Description:      node token
+Local:            false
+Create Time:      2020-02-27 13:19:24.713079588 +0900 JST
+Policies:
+   d97aac97-d6c7-ff46-006e-34d681134f97 - node-policy
+[r-user@cc-3 ~]$ consul acl token create -description "node token" -policy-name node-policy
+AccessorID:       4fd26066-b443-7324-3731-8dadae637d8b
+SecretID:         c34b6390-1ab3-f935-1b01-08941a628072
+Description:      node token
+Local:            false
+Create Time:      2020-02-27 13:22:26.275647227 +0900 JST
+Policies:
+   d97aac97-d6c7-ff46-006e-34d681134f97 - node-policy
+[r-user@c-test ~]$ consul acl token create -description "node token" -policy-name node-policy
+AccessorID:       0d649001-81a8-dcce-dadf-9736985ebf83
+SecretID:         686f1915-8663-8db9-ab38-dc3e18dff254
+Description:      node token
+Local:            false
+Create Time:      2020-02-27 18:47:47.733402885 +0900 JST
+Policies:
+   d97aac97-d6c7-ff46-006e-34d681134f97 - node-policy
+
+
+
+加载token：
+[r-user@cc-1 ~]$ consul acl set-agent-token agent "69ef4558-866d-f335-df81-35fe4a9be5eb"
+ACL token "agent" set successfully
+[r-user@cc-2 ~]$ consul acl set-agent-token agent "0b2d4445-f3c8-9a1e-e0d6-89e593f2a977"
+ACL token "agent" set successfully
+[r-user@cc-3 ~]$ consul acl set-agent-token agent "c34b6390-1ab3-f935-1b01-08941a628072"
+ACL token "agent" set successfully
+[r-user@c-test ~]$ consul acl set-agent-token agent "686f1915-8663-8db9-ab38-dc3e18dff254"
+ACL token "agent" set successfully
+
+
+
+在配置好gossip encryption, TLS RPC, 和ACL之后，在client上执行：
+[r-user@c-test ~]$ sudo systemctl restart consul
+[r-user@c-test ~]$ sudo systemctl status consul -l
+● consul.service - "HashiCorp Consul - A service mesh solution"
+   Loaded: loaded (/etc/systemd/system/consul.service; enabled; vendor preset: disabled)
+   Active: active (running) since Thu 2020-02-27 18:49:26 JST; 2s ago
+     Docs: https://www.consul.io/
+ Main PID: 30286 (consul)
+   CGroup: /system.slice/consul.service
+           └─30286 /usr/local/bin/consul agent -config-dir=/etc/consul.d/
+
+Feb 27 18:49:26 c-test consul[30286]: 2020-02-27T18:49:26.620+0900 [INFO]  agent.client.serf.lan: serf: EventMemberJoin: cc-1 172.18.1.102
+Feb 27 18:49:26 c-test consul[30286]: 2020-02-27T18:49:26.620+0900 [INFO]  agent.client.serf.lan: serf: EventMemberJoin: cc-2 172.18.1.110
+Feb 27 18:49:26 c-test consul[30286]: 2020-02-27T18:49:26.620+0900 [INFO]  agent.client: adding server: server="cc-3 (Addr: tcp/172.18.1.118:8300) (DC:                                                                                                                                                                                           dc1)"
+Feb 27 18:49:26 c-test consul[30286]: 2020-02-27T18:49:26.620+0900 [INFO]  agent.client: adding server: server="cc-1 (Addr: tcp/172.18.1.102:8300) (DC:                                                                                                                                                                                           dc1)"
+Feb 27 18:49:26 c-test consul[30286]: 2020-02-27T18:49:26.621+0900 [INFO]  agent.client: adding server: server="cc-2 (Addr: tcp/172.18.1.110:8300) (DC:                                                                                                                                                                                           dc1)"
+Feb 27 18:49:26 c-test consul[30286]: 2020-02-27T18:49:26.628+0900 [INFO]  agent: (LAN) joined: number_of_nodes=3
+Feb 27 18:49:26 c-test consul[30286]: 2020-02-27T18:49:26.628+0900 [INFO]  agent: Join cluster completed. Synced with initial agents: cluster=LAN num_a                                                                                                                                                                                          gents=3
+Feb 27 18:49:26 c-test systemd[1]: Started "HashiCorp Consul - A service mesh solution".
+Feb 27 18:49:26 c-test consul[30286]: 2020-02-27T18:49:26.661+0900 [INFO]  agent.client.serf.lan: serf: EventMemberUpdate: c-test
+Feb 27 18:49:28 c-test consul[30286]: 2020-02-27T18:49:28.069+0900 [INFO]  agent: Synced node info
+
+
+[r-user@c-test ~]$ journalctl -xe
+-- Defined-By: systemd
+-- Support: http://lists.freedesktop.org/mailman/listinfo/systemd-devel
+--
+-- Unit consul.service has begun starting up.
+Feb 27 18:49:26 c-test consul[30286]: ==> Starting Consul agent...
+Feb 27 18:49:26 c-test consul[30286]: Version: 'v1.7.1'
+Feb 27 18:49:26 c-test consul[30286]: Node ID: 'dccfbc9d-92ea-ccd4-927e-b38cc1bbfca7'
+Feb 27 18:49:26 c-test consul[30286]: Node name: 'c-test'
+Feb 27 18:49:26 c-test consul[30286]: Datacenter: 'dc1' (Segment: '')
+Feb 27 18:49:26 c-test consul[30286]: Server: false (Bootstrap: false)
+Feb 27 18:49:26 c-test consul[30286]: Client Addr: [127.0.0.1] (HTTP: 8500, HTTPS: -1, gRPC: -1, DNS: 8600)
+Feb 27 18:49:26 c-test consul[30286]: Cluster Addr: 172.18.1.104 (LAN: 8301, WAN: 8302)
+Feb 27 18:49:26 c-test consul[30286]: Encrypt: Gossip: true, TLS-Outgoing: true, TLS-Incoming: true, Auto-Encrypt-TLS: true
+Feb 27 18:49:26 c-test consul[30286]: ==> Log data will now stream in as it occurs:
+Feb 27 18:49:26 c-test consul[30286]: 2020-02-27T18:49:26.607+0900 [INFO]  agent.client.serf.lan: serf: EventMemberJoin: c-test 172.18.1.104
+Feb 27 18:49:26 c-test consul[30286]: 2020-02-27T18:49:26.609+0900 [INFO]  agent: Started DNS server: address=127.0.0.1:8600 network=udp
+Feb 27 18:49:26 c-test consul[30286]: 2020-02-27T18:49:26.611+0900 [INFO]  agent: Started DNS server: address=127.0.0.1:8600 network=tcp
+Feb 27 18:49:26 c-test consul[30286]: 2020-02-27T18:49:26.614+0900 [INFO]  agent: Started HTTP server: address=127.0.0.1:8500 network=tcp
+Feb 27 18:49:26 c-test consul[30286]: 2020-02-27T18:49:26.615+0900 [INFO]  agent: started state syncer
+Feb 27 18:49:26 c-test consul[30286]: ==> Consul agent running!
+Feb 27 18:49:26 c-test consul[30286]: 2020-02-27T18:49:26.615+0900 [INFO]  agent: Retry join is supported for the following discovery methods: cluster=
+Feb 27 18:49:26 c-test consul[30286]: 2020-02-27T18:49:26.615+0900 [INFO]  agent: Joining cluster...: cluster=LAN
+Feb 27 18:49:26 c-test consul[30286]: 2020-02-27T18:49:26.615+0900 [INFO]  agent: (LAN) joining: lan_addresses=[172.18.1.102, 172.18.1.110, 172.18.1.11
+Feb 27 18:49:26 c-test consul[30286]: 2020-02-27T18:49:26.615+0900 [WARN]  agent.client.manager: No servers available
+Feb 27 18:49:26 c-test consul[30286]: 2020-02-27T18:49:26.615+0900 [ERROR] agent.anti_entropy: failed to sync remote state: error="No known Consul serv
+Feb 27 18:49:26 c-test consul[30286]: 2020-02-27T18:49:26.620+0900 [WARN]  agent.client.memberlist.lan: memberlist: Refuting a dead message (from: c-te
+Feb 27 18:49:26 c-test consul[30286]: 2020-02-27T18:49:26.620+0900 [INFO]  agent.client.serf.lan: serf: EventMemberJoin: cc-3 172.18.1.118
+Feb 27 18:49:26 c-test consul[30286]: 2020-02-27T18:49:26.620+0900 [INFO]  agent.client.serf.lan: serf: EventMemberJoin: cc-1 172.18.1.102
+Feb 27 18:49:26 c-test consul[30286]: 2020-02-27T18:49:26.620+0900 [INFO]  agent.client.serf.lan: serf: EventMemberJoin: cc-2 172.18.1.110
+Feb 27 18:49:26 c-test consul[30286]: 2020-02-27T18:49:26.620+0900 [INFO]  agent.client: adding server: server="cc-3 (Addr: tcp/172.18.1.118:8300) (DC:
+Feb 27 18:49:26 c-test consul[30286]: 2020-02-27T18:49:26.620+0900 [INFO]  agent.client: adding server: server="cc-1 (Addr: tcp/172.18.1.102:8300) (DC:
+Feb 27 18:49:26 c-test consul[30286]: 2020-02-27T18:49:26.621+0900 [INFO]  agent.client: adding server: server="cc-2 (Addr: tcp/172.18.1.110:8300) (DC:
+Feb 27 18:49:26 c-test consul[30286]: 2020-02-27T18:49:26.628+0900 [INFO]  agent: (LAN) joined: number_of_nodes=3
+Feb 27 18:49:26 c-test consul[30286]: 2020-02-27T18:49:26.628+0900 [INFO]  agent: Join cluster completed. Synced with initial agents: cluster=LAN num_a
+Feb 27 18:49:26 c-test systemd[1]: Started "HashiCorp Consul - A service mesh solution".
+-- Subject: Unit consul.service has finished start-up
+
+上面的WARN和ERROR信息还是不明白原因。
+
+
+[r-user@c-test ~]$ consul members
+Node    Address            Status  Type    Build  Protocol  DC   Segment
+cc-1    172.18.1.102:8301  alive   server  1.7.1  2         dc1  <all>
+cc-2    172.18.1.110:8301  alive   server  1.7.1  2         dc1  <all>
+cc-3    172.18.1.118:8301  alive   server  1.7.1  2         dc1  <all>
+c-test  172.18.1.104:8301  alive   client  1.7.1  2         dc1  <default>
+[r-user@c-test ~]$ consul info
+agent:
+        check_monitors = 0
+        check_ttls = 0
+        checks = 0
+        services = 0
+build:
+        prerelease =
+        revision = 2cf0a3c8
+        version = 1.7.1
+consul:
+        acl = enabled
+        known_servers = 3
+        server = false
+runtime:
+        arch = amd64
+        cpu_count = 2
+        goroutines = 46
+        max_procs = 2
+        os = linux
+        version = go1.13.7
+serf_lan:
+        coordinate_resets = 0
+        encrypted = true
+        event_queue = 0
+        event_time = 10
+        failed = 0
+        health_score = 0
+        intent_queue = 0
+        left = 0
+        member_time = 67
+        members = 4
+        query_queue = 0
+        query_time = 1
+[r-user@cc-1 ~]$ consul info -token=69ef4558-866d-f335-df81-35fe4a9be5eb
+agent:
+        check_monitors = 0
+        check_ttls = 0
+        checks = 0
+        services = 0
+build:
+        prerelease =
+        revision = 2cf0a3c8
+        version = 1.7.1
+consul:
+        acl = enabled
+        bootstrap = false
+        known_datacenters = 1
+        leader = false
+        leader_addr = 172.18.1.110:8300
+        server = true
+raft:
+        applied_index = 9834
+        commit_index = 9834
+        fsm_pending = 0
+        last_contact = 35.468162ms
+        last_log_index = 9834
+        last_log_term = 33020
+        last_snapshot_index = 0
+        last_snapshot_term = 0
+        latest_configuration = [{Suffrage:Voter ID:e4fae571-4623-b6de-7d7c-a8a3093bd093 Address:172.18.1.110:8300} {Suffrage:Voter ID:41c0ba56-53b5-31a9-9df2-81cbe37b2935 Address:172.18.1.102:8300} {Suffrage:Voter ID:77820d3b-6a08-65a7-2741-1ff417eb8ed0 Address:172.18.1.118:8300}]
+        latest_configuration_index = 0
+        num_peers = 2
+        protocol_version = 3
+        protocol_version_max = 3
+        protocol_version_min = 0
+        snapshot_version_max = 1
+        snapshot_version_min = 0
+        state = Follower
+        term = 33020
+runtime:
+        arch = amd64
+        cpu_count = 2
+        goroutines = 90
+        max_procs = 2
+        os = linux
+        version = go1.13.7
+serf_lan:
+        coordinate_resets = 0
+        encrypted = true
+        event_queue = 0
+        event_time = 10
+        failed = 0
+        health_score = 0
+        intent_queue = 0
+        left = 1
+        member_time = 67
+        members = 5
+        query_queue = 0
+        query_time = 1
+serf_wan:
+        coordinate_resets = 0
+        encrypted = true
+        event_queue = 0
+        event_time = 1
+        failed = 0
+        health_score = 0
+        intent_queue = 0
+        left = 0
+        member_time = 30
+        members = 3
+        query_queue = 0
+        query_time = 1
+
+
+
+
+在1台server上执行：
+[r-user@cc-1 ~]$ vi vault-policy.hcl
+内容：
+key_prefix "vault/" {
+ policy = "write"
+}
+node_prefix "" {
+ policy = "write"
+}
+service "vault" {
+ policy = "write"
+}
+agent_prefix "" {
+ policy = "write"
+}
+session_prefix "" {
+ policy = "write"
+}
+[r-user@cc-1 ~]$ consul acl policy create \
+>      -token=${CONSUL_MGMT_TOKEN} \
+>      -name vault-policy \
+>      -rules @vault-policy.hcl
+ID:           adddc5c3-9447-6111-e32e-27c94105ce37
+Name:         vault-policy
+Description:
+Datacenters:
+Rules:
+key_prefix "vault/" {
+ policy = "write"
+}
+node_prefix "" {
+ policy = "write"
+}
+service "vault" {
+ policy = "write"
+}
+agent_prefix "" {
+ policy = "write"
+}
+session_prefix "" {
+ policy = "write"
+}
+[r-user@cc-1 ~]$ consul acl token create \
+>      -token=${CONSUL_MGMT_TOKEN} \
+>      -description "Token for Vault Service" \
+>      -policy-name vault-policy
+AccessorID:       5140a547-117f-2e69-4233-5a30fb08a4e8
+SecretID:         758114be-5324-114b-39b1-12051c2abbfe
+Description:      Token for Vault Service
+Local:            false
+Create Time:      2020-02-25 18:10:42.400165486 +0900 JST
+Policies:
+   adddc5c3-9447-6111-e32e-27c94105ce37 - vault-policy
+到此为止已经配置好Consul的访问限制。
+这个SecretID是接下来Vault配置时用的。
+
+
+
+[r-user@cc-1 ~]$ consul operator raft list-peers -token=8211bb31-887a-ee99-8c08-cadc92edf30e
+Node  ID                                    Address            State     Voter  RaftProtocol
+cc-2  e4fae571-4623-b6de-7d7c-a8a3093bd093  172.18.1.110:8300  leader    true   3
+cc-1  41c0ba56-53b5-31a9-9df2-81cbe37b2935  172.18.1.102:8300  follower  true   3
+cc-3  77820d3b-6a08-65a7-2741-1ff417eb8ed0  172.18.1.118:8300  follower  true   3
+
+[r-user@c-test ~]$ consul info -token=686f1915-8663-8db9-ab38-dc3e18dff254 -http-addr="http://172.18.1.102:8500"
+agent:
+        check_monitors = 0
+        check_ttls = 0
+        checks = 0
+        services = 0
+build:
+        prerelease =
+        revision = 2cf0a3c8
+        version = 1.7.1
+consul:
+        acl = enabled
+        bootstrap = false
+        known_datacenters = 1
+        leader = false
+        leader_addr = 172.18.1.110:8300
+        server = true
+raft:
+        applied_index = 67818
+        commit_index = 67818
+        fsm_pending = 0
+        last_contact = 54.969059ms
+        last_log_index = 67818
+        last_log_term = 33022
+        last_snapshot_index = 65542
+        last_snapshot_term = 33020
+        latest_configuration = [{Suffrage:Voter ID:e4fae571-4623-b6de-7d7c-a8a3093bd093 Address:172.18.1.110:8300} {Suffrage:Voter ID:77820d3b-6a08-65a7-2741-1ff417eb8ed0 Address:172.18.1.118:8300} {Suffrage:Voter ID:41c0ba56-53b5-31a9-9df2-81cbe37b2935 Address:172.18.1.102:8300}]
+        latest_configuration_index = 0
+        num_peers = 2
+        protocol_version = 3
+        protocol_version_max = 3
+        protocol_version_min = 0
+        snapshot_version_max = 1
+        snapshot_version_min = 0
+        state = Follower
+        term = 33022
+runtime:
+        arch = amd64
+        cpu_count = 2
+        goroutines = 83
+        max_procs = 2
+        os = linux
+        version = go1.13.7
+serf_lan:
+        coordinate_resets = 0
+        encrypted = true
+        event_queue = 0
+        event_time = 12
+        failed = 0
+        health_score = 0
+        intent_queue = 0
+        left = 0
+        member_time = 83
+        members = 4
+        query_queue = 0
+        query_time = 1
+serf_wan:
+        coordinate_resets = 0
+        encrypted = true
+        event_queue = 0
+        event_time = 1
+        failed = 0
+        health_score = 0
+        intent_queue = 0
+        left = 0
+        member_time = 44
+        members = 3
+        query_queue = 0
+        query_time = 1
+
+
+[r-user@c-test ~]$ consul info -token=686f1915-8663-8db9-ab38-dc3e18dff254 -http-addr="https://server.dc1.consul:8501" -ca-file=/etc/consul.d/consul-agent-ca.pem
+Error querying agent: Get https://server.dc1.consul:8501/v1/agent/self: remote error: tls: bad certificate
+
+
+[r-user@c-test ~]$ consul info -token=686f1915-8663-8db9-ab38-dc3e18dff254 -http-addr="https://server.dc1.consul:8501" -ca-file=/etc/consul.d/consul-agent-ca.pem -client-cert=/etc/consul.d/dc1-client-consul-0.pem -client-key=/etc/consul.d/dc1-client-consul-0-key.pem
+agent:
+        check_monitors = 0
+        check_ttls = 1
+        checks = 1
+        services = 1
+build:
+        prerelease =
+        revision = 2cf0a3c8
+        version = 1.7.1
+consul:
+        acl = enabled
+        bootstrap = false
+        known_datacenters = 1
+        leader = false
+        leader_addr = 172.18.1.110:8300
+        server = true
+raft:
+        applied_index = 68491
+        commit_index = 68491
+        fsm_pending = 0
+        last_contact = 8.518259ms
+        last_log_index = 68491
+        last_log_term = 33022
+        last_snapshot_index = 65542
+        last_snapshot_term = 33020
+        latest_configuration = [{Suffrage:Voter ID:e4fae571-4623-b6de-7d7c-a8a3093bd093 Address:172.18.1.110:8300} {Suffrage:Voter ID:77820d3b-6a08-65a7-2741-1ff417eb8ed0 Address:172.18.1.118:8300} {Suffrage:Voter ID:41c0ba56-53b5-31a9-9df2-81cbe37b2935 Address:172.18.1.102:8300}]
+        latest_configuration_index = 0
+        num_peers = 2
+        protocol_version = 3
+        protocol_version_max = 3
+        protocol_version_min = 0
+        snapshot_version_max = 1
+        snapshot_version_min = 0
+        state = Follower
+        term = 33022
+runtime:
+        arch = amd64
+        cpu_count = 2
+        goroutines = 99
+        max_procs = 2
+        os = linux
+        version = go1.13.7
+serf_lan:
+        coordinate_resets = 0
+        encrypted = true
+        event_queue = 0
+        event_time = 12
+        failed = 0
+        health_score = 0
+        intent_queue = 0
+        left = 0
+        member_time = 83
+        members = 4
+        query_queue = 0
+        query_time = 1
+serf_wan:
+        coordinate_resets = 0
+        encrypted = true
+        event_queue = 0
+        event_time = 1
+        failed = 0
+        health_score = 0
+        intent_queue = 0
+        left = 0
+        member_time = 44
+        members = 3
+        query_queue = 0
+        query_time = 1
+
+
+
+
+[r-user@cc-1 ~]$ consul debug -token=69ef4558-866d-f335-df81-35fe4a9be5eb
+[WARN] Unable to capture pprof. Set enable_debug to true on target agent to enable profiling.
+==> Starting debugger and capturing static information...
+     Agent Version: '1.7.1'
+          Interval: '30s'
+          Duration: '2m0s'
+            Output: 'consul-debug-1583147735.tar.gz'
+           Capture: 'metrics, logs, host, agent, cluster'
+Static capture failed: 1 error occurred:
+        * Unexpected response code: 403 (Permission denied)
+
+
+==> Beginning capture interval 2020-03-02 20:15:35.509450461 +0900 JST (0)
+==> Capture successful 2020-03-02 20:15:35 +0900 JST (1)
+
+[r-user@cc-1 ~]$ tar xvfz consul-debug-1583147735.tar.gz
+consul-debug-1583147735
+consul-debug-1583147735/1583147735
+consul-debug-1583147735/1583147735/consul.log
+consul-debug-1583147735/1583147735/metrics.json
+consul-debug-1583147735/1583147765
+consul-debug-1583147735/1583147765/consul.log
+consul-debug-1583147735/1583147765/metrics.json
+consul-debug-1583147735/agent.json
+consul-debug-1583147735/cluster.json
+consul-debug-1583147735/host.json
+consul-debug-1583147735/index.json
+
+
+
+8500端口
+[r-user@cc-1 ~]$  sudo curl http://127.0.0.1:8500/v1/catalog/datacenters
+["dc1"]
+
+https://www.consul.io/docs/agent/options.html#example-configuration-file-with-tls
+
