@@ -3645,6 +3645,699 @@ cd ../consul
 packer build -only=amazon-ebs-ubuntu-16.04-systemd vault-aws.json# This will run Packer twice, building two Ubuntu-based images, for Vault and Consul.
 
 
+■ Azure相关设置
+Subscription ID
+3eb94088-7a15-434d-8c0a-7ac4d3568e81
+
+Directory
+Rakuten, Inc. (OFFICERAKUTEN.onmicrosoft.com)
+
+My role
+Contributor
+
+Offer
+Enterprise Agreement
+
+Offer ID
+MS-AZR-0017P
+
+Subscription name
+RakutenCom-Vault
+
+Current billing period
+3/1/2020-3/31/2020
+Currency
+JPY
+
+Status
+Active
+
+还有一个试用版：
+Subscription ID： 6906f1b4-5e2d-4acf-bde6-db6d729ea826
+Directory: Rakuten, Inc. (OFFICERAKUTEN.onmicrosoft.com)
+Offer ID: MS-AZR-0044P
+
+
+安装Azure client
+[r-user@test-vm ~]$ sudo rpm --import https://packages.microsoft.com/keys/microsoft.asc
+[r-user@test-vm ~]$ sudo sh -c 'echo -e "[azure-cli]
+> name=Azure CLI
+> baseurl=https://packages.microsoft.com/yumrepos/azure-cli
+> enabled=1
+> gpgcheck=1
+> gpgkey=https://packages.microsoft.com/keys/microsoft.asc" > /etc/yum.repos.d/azure-cli.repo'
+[r-user@test-vm ~]$ 
+[r-user@test-vm ~]$
+[r-user@test-vm ~]$
+[r-user@test-vm ~]$ sudo yum install azure-cli
+Loaded plugins: fastestmirror, langpacks
+Loading mirror speeds from cached hostfile
+epel/x86_64/metalink                                                                                                                | 3.6 kB  00:00:00     
+ * base: ty1.mirror.newmediaexpress.com
+ * epel: nrt.edge.kernel.org
+ * extras: ty1.mirror.newmediaexpress.com
+ * updates: ty1.mirror.newmediaexpress.com
+azure-cli                                                                                                                           | 2.9 kB  00:00:00     
+base                                                                                                                                | 3.6 kB  00:00:00     
+docker-ce-stable                                                                                                                    | 3.5 kB  00:00:00     
+epel                                                                                                                                | 5.3 kB  00:00:00     
+extras                                                                                                                              | 2.9 kB  00:00:00     
+mysql-connectors-community                                                                                                          | 2.5 kB  00:00:00     
+mysql-tools-community                                                                                                               | 2.5 kB  00:00:00     
+mysql80-community                                                                                                                   | 2.5 kB  00:00:00     
+updates                                                                                                                             | 2.9 kB  00:00:00     
+azure-cli/primary_db                                                                                                                |  51 kB  00:00:00     
+Resolving Dependencies
+--> Running transaction check
+---> Package azure-cli.x86_64 0:2.2.0-1.el7 will be installed
+--> Processing Dependency: python3 for package: azure-cli-2.2.0-1.el7.x86_64
+--> Processing Dependency: libpython3.6m.so.1.0()(64bit) for package: azure-cli-2.2.0-1.el7.x86_64
+--> Running transaction check
+---> Package python3.x86_64 0:3.6.8-10.el7 will be installed
+--> Processing Dependency: python3-setuptools for package: python3-3.6.8-10.el7.x86_64
+--> Processing Dependency: python3-pip for package: python3-3.6.8-10.el7.x86_64
+---> Package python3-libs.x86_64 0:3.6.8-10.el7 will be installed
+--> Running transaction check
+---> Package python3-pip.noarch 0:9.0.3-5.el7 will be installed
+---> Package python3-setuptools.noarch 0:39.2.0-10.el7 will be installed
+--> Finished Dependency Resolution
+
+Dependencies Resolved
+
+=========================================================================================================================================================== Package                                    Arch                           Version                                 Repository                         Size 
+===========================================================================================================================================================Installing:
+ azure-cli                                  x86_64                         2.2.0-1.el7                             azure-cli                          41 M 
+Installing for dependencies:
+ python3                                    x86_64                         3.6.8-10.el7                            base                               69 k 
+ python3-libs                               x86_64                         3.6.8-10.el7                            base                              7.0 M 
+ python3-pip                                noarch                         9.0.3-5.el7                             base                              1.8 M 
+ python3-setuptools                         noarch                         39.2.0-10.el7                           base                              629 k 
+
+Transaction Summary
+===========================================================================================================================================================(4/5): python3-libs-3.6.8-10.el7.x86_64.rpm
+                                            | 7.0 MB  00:00:00
+(5/5): azure-cli-2.2.0-1.el7.x86_64.rpm                                                                                             |  41 MB  00:00:02
+-----------------------------------------------------------------------------------------------------------------------------------------------------------Total
+                                                                          23 MB/s |  50 MB  00:00:02
+Running transaction check
+Running transaction test
+Transaction test succeeded
+Running transaction
+  Installing : python3-setuptools-39.2.0-10.el7.noarch                                                                                                 1/5
+  Installing : python3-pip-9.0.3-5.el7.noarch                                                                                                          2/5
+  Installing : python3-3.6.8-10.el7.x86_64                                                                                                             3/5
+  Installing : python3-libs-3.6.8-10.el7.x86_64                                                                                                        4/5
+  Installing : azure-cli-2.2.0-1.el7.x86_64 [###########################################  Installing : azure-cli-2.2.0-1.el7.x86_64 [###########################################  Installing : azure-cli-2.2.  Installing : azure-cli-2.2.0-1.el7.x86_64                                                                                                                                                              5/5 
+  Verifying  : python3-libs-3.6.8-10.el7.x86_64                                                                                                                                                          1/5 
+  Verifying  : python3-setuptools-39.2.0-10.el7.noarch                                                                                                                                                   2/5 
+  Verifying  : azure-cli-2.2.0-1.el7.x86_64                                                                                                                                                              3/5 
+  Verifying  : python3-3.6.8-10.el7.x86_64                                                                                                                                                               4/5 
+  Verifying  : python3-pip-9.0.3-5.el7.noarch                                                                                                                                                            5/5 
+
+Installed:
+  azure-cli.x86_64 0:2.2.0-1.el7
+
+Dependency Installed:
+  python3.x86_64 0:3.6.8-10.el7                 python3-libs.x86_64 0:3.6.8-10.el7                 python3-pip.noarch 0:9.0.3-5.el7                 python3-setuptools.noarch 0:39.2.0-10.el7
+
+Complete!
+
+下面命令会需要在浏览器中输入认证口令，确认自己的登录账号后自动返回方括号内的信息。
+[r-user@test-vm ~]$ az login
+To sign in, use a web browser to open the page https://microsoft.com/devicelogin and enter the code HSMKX4GA2 to authenticate.
+[
+  {
+    "cloudName": "AzureCloud",
+    "homeTenantId": "53a8b0d9-d900-48cc-9d7e-5935dc8d5b17",
+    "id": "6906f1b4-5e2d-4acf-bde6-db6d729ea826",
+    "isDefault": true,
+    "managedByTenants": [],
+    "name": "無料試用版",
+    "state": "Enabled",
+    "tenantId": "53a8b0d9-d900-48cc-9d7e-5935dc8d5b17",
+    "user": {
+      "name": "song.liu@rakuten.com",
+      "type": "user"
+    }
+  },
+  {
+    "cloudName": "AzureCloud",
+    "homeTenantId": "53a8b0d9-d900-48cc-9d7e-5935dc8d5b17",
+    "id": "3eb94088-7a15-434d-8c0a-7ac4d3568e81",
+    "isDefault": false,
+    "managedByTenants": [],
+    "name": "RakutenCom-Vault",
+    "state": "Enabled",
+    "tenantId": "53a8b0d9-d900-48cc-9d7e-5935dc8d5b17",
+    "user": {
+      "name": "song.liu@rakuten.com",
+      "type": "user"
+    }
+  }
+]
+
+
+[r-user@test-vm ~]$ sudo rpm --import https://packages.microsoft.com/keys/microsoft.asc
+[r-user@test-vm ~]$ sudo sh -c 'echo -e "[azure-cli]
+> name=Azure CLI
+> baseurl=https://packages.microsoft.com/yumrepos/azure-cli
+> enabled=1
+> gpgcheck=1
+> gpgkey=https://packages.microsoft.com/keys/microsoft.asc" > /etc/yum.repos.d/azure-cli.repo'
+[r-user@test-vm ~]$ 
+[r-user@test-vm ~]$
+[r-user@test-vm ~]$
+[r-user@test-vm ~]$ sudo yum install azure-cli
+Loaded plugins: fastestmirror, langpacks
+Loading mirror speeds from cached hostfile
+epel/x86_64/metalink                                                                                                                | 3.6 kB  00:00:00     
+ * base: ty1.mirror.newmediaexpress.com
+ * epel: nrt.edge.kernel.org
+ * extras: ty1.mirror.newmediaexpress.com
+ * updates: ty1.mirror.newmediaexpress.com
+azure-cli                                                                                                                           | 2.9 kB  00:00:00     
+base                                                                                                                                | 3.6 kB  00:00:00     
+docker-ce-stable                                                                                                                    | 3.5 kB  00:00:00     
+epel                                                                                                                                | 5.3 kB  00:00:00     
+extras                                                                                                                              | 2.9 kB  00:00:00     
+mysql-connectors-community                                                                                                          | 2.5 kB  00:00:00     
+mysql-tools-community                                                                                                               | 2.5 kB  00:00:00     
+mysql80-community                                                                                                                   | 2.5 kB  00:00:00     
+updates                                                                                                                             | 2.9 kB  00:00:00     
+azure-cli/primary_db                                                                                                                |  51 kB  00:00:00     
+Resolving Dependencies
+--> Running transaction check
+---> Package azure-cli.x86_64 0:2.2.0-1.el7 will be installed
+--> Processing Dependency: python3 for package: azure-cli-2.2.0-1.el7.x86_64
+--> Processing Dependency: libpython3.6m.so.1.0()(64bit) for package: azure-cli-2.2.0-1.el7.x86_64
+--> Running transaction check
+---> Package python3.x86_64 0:3.6.8-10.el7 will be installed
+--> Processing Dependency: python3-setuptools for package: python3-3.6.8-10.el7.x86_64
+--> Processing Dependency: python3-pip for package: python3-3.6.8-10.el7.x86_64
+---> Package python3-libs.x86_64 0:3.6.8-10.el7 will be installed
+--> Running transaction check
+---> Package python3-pip.noarch 0:9.0.3-5.el7 will be installed
+---> Package python3-setuptools.noarch 0:39.2.0-10.el7 will be installed
+--> Finished Dependency Resolution
+
+Dependencies Resolved
+
+=========================================================================================================================================================== Package                                    Arch                           Version                                 Repository                         Size 
+===========================================================================================================================================================Installing:
+ azure-cli                                  x86_64                         2.2.0-1.el7                             azure-cli                          41 M 
+Installing for dependencies:
+ python3                                    x86_64                         3.6.8-10.el7                            base                               69 k 
+ python3-libs                               x86_64                         3.6.8-10.el7                            base                              7.0 M 
+ python3-pip                                noarch                         9.0.3-5.el7                             base                              1.8 M 
+ python3-setuptools                         noarch                         39.2.0-10.el7                           base                              629 k 
+
+Transaction Summary
+===========================================================================================================================================================(4/5): python3-libs-3.6.8-10.el7.x86_64.rpm
+                                            | 7.0 MB  00:00:00
+(5/5): azure-cli-2.2.0-1.el7.x86_64.rpm                                                                                             |  41 MB  00:00:02
+-----------------------------------------------------------------------------------------------------------------------------------------------------------Total
+                                                                          23 MB/s |  50 MB  00:00:02
+Running transaction check
+Running transaction test
+Transaction test succeeded
+Running transaction
+  Installing : python3-setuptools-39.2.0-10.el7.noarch                                                                                                 1/5
+  Installing : python3-pip-9.0.3-5.el7.noarch                                                                                                          2/5
+  Installing : python3-3.6.8-10.el7.x86_64                                                                                                             3/5
+  Installing : python3-libs-3.6.8-10.el7.x86_64                                                                                                        4/5
+  Installing : azure-cli-2.2.0-1.el7.x86_64 [###########################################  Installing : azure-cli-2.2.0-1.el7.x86_64 [###########################################  Installing : azure-cli-2.2.  Installing : azure-cli-2.2.0-1.el7.x86_64                                                                                                                                                              5/5 
+  Verifying  : python3-libs-3.6.8-10.el7.x86_64                                                                                                                                                          1/5 
+  Verifying  : python3-setuptools-39.2.0-10.el7.noarch                                                                                                                                                   2/5 
+  Verifying  : azure-cli-2.2.0-1.el7.x86_64                                                                                                                                                              3/5 
+  Verifying  : python3-3.6.8-10.el7.x86_64                                                                                                                                                               4/5 
+  Verifying  : python3-pip-9.0.3-5.el7.noarch                                                                                                                                                            5/5 
+
+Installed:
+  azure-cli.x86_64 0:2.2.0-1.el7
+
+Dependency Installed:
+  python3.x86_64 0:3.6.8-10.el7                 python3-libs.x86_64 0:3.6.8-10.el7                 python3-pip.noarch 0:9.0.3-5.el7                 python3-setuptools.noarch 0:39.2.0-10.el7
+
+Complete!
+[r-user@test-vm ~]$ az login
+To sign in, use a web browser to open the page https://microsoft.com/devicelogin and enter the code HSMKX4GA2 to authenticate.
+[
+  {
+    "cloudName": "AzureCloud",
+    "homeTenantId": "53a8b0d9-d900-48cc-9d7e-5935dc8d5b17",
+    "id": "6906f1b4-5e2d-4acf-bde6-db6d729ea826",
+    "isDefault": true,
+    "managedByTenants": [],
+    "name": "無料試用版",
+    "state": "Enabled",
+    "tenantId": "53a8b0d9-d900-48cc-9d7e-5935dc8d5b17",
+    "user": {
+      "name": "song.liu@rakuten.com",
+      "type": "user"
+    }
+  },
+  {
+    "cloudName": "AzureCloud",
+    "homeTenantId": "53a8b0d9-d900-48cc-9d7e-5935dc8d5b17",
+    "id": "3eb94088-7a15-434d-8c0a-7ac4d3568e81",
+    "isDefault": false,
+    "managedByTenants": [],
+    "name": "RakutenCom-Vault",
+    "state": "Enabled",
+    "tenantId": "53a8b0d9-d900-48cc-9d7e-5935dc8d5b17",
+    "user": {
+      "name": "song.liu@rakuten.com",
+      "type": "user"
+    }
+  }
+]
+
+如果有多个subscription的话用下面的命令指定某个subscription
+[r-user@test-vm ~]$ az account set --subscription="有管理资源权限的那个subscription-id"
+这里使用的为：Subscription ID： 6906f1b4-5e2d-4acf-bde6-db6d729ea826
+
+
+下面的命令也可以：az ad sp create-for-rbac --role="Contributor" --scopes="/subscriptions/SUBSCRIPTION_ID"
+[r-user@test-vm ~]$ az ad sp create-for-rbac --role="Contributor"
+Creating a role assignment under the scope of "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826"
+  Retrying role assignment creation: 1/36
+  Retrying role assignment creation: 2/36
+  Retrying role assignment creation: 3/36
+  Retrying role assignment creation: 4/36
+{
+  "appId": "c7b6d162-f109-4ec9-863c-34141332f98d",
+  "displayName": "azure-cli-2020-03-18-05-12-48",
+  "name": "http://azure-cli-2020-03-18-05-12-48",
+  "password": "1a2f9dce-f637-4699-a1ed-5653a0bf0e2c",
+  "tenant": "53a8b0d9-d900-48cc-9d7e-5935dc8d5b17"
+}
+
+These values map to the Terraform variables like so:
+
+    appId is the client_id defined above.
+    password is the client_secret defined above.
+    tenant is the tenant_id defined above.
+
+export ARM_SUBSCRIPTION_ID=6906f1b4-5e2d-4acf-bde6-db6d729ea826
+export ARM_CLIENT_ID=c7b6d162-f109-4ec9-863c-34141332f98d
+export ARM_CLIENT_SECRET=1a2f9dce-f637-4699-a1ed-5653a0bf0e2c
+export ARM_TENANT_ID=53a8b0d9-d900-48cc-9d7e-5935dc8d5b17
+
+
+最后做个测试：
+[r-user@test-vm ~]$ az login --service-principal -u $ARM_CLIENT_ID -p $ARM_CLIENT_SECRET --tenant $ARM_TENANT_ID
+[
+  {
+    "cloudName": "AzureCloud",
+    "homeTenantId": "53a8b0d9-d900-48cc-9d7e-5935dc8d5b17",
+    "id": "6906f1b4-5e2d-4acf-bde6-db6d729ea826",
+    "isDefault": true,
+    "managedByTenants": [],
+    "name": "無料試用版",
+    "state": "Enabled",
+    "tenantId": "53a8b0d9-d900-48cc-9d7e-5935dc8d5b17",
+    "user": {
+      "name": "c7b6d162-f109-4ec9-863c-34141332f98d",
+      "type": "servicePrincipal"
+    }
+  }
+]
+
+登录之后就可以查看比如West US region的虚机大小之类的操作了。
+[r-user@test-vm ~]$ az vm list-sizes --location westus | more
+[
+  {
+    "maxDataDiskCount": 2,
+    "memoryInMb": 512,
+    "name": "Standard_B1ls",
+    "numberOfCores": 1,
+    "osDiskSizeInMb": 1047552,
+    "resourceDiskSizeInMb": 4096
+  },
+  {
+    "maxDataDiskCount": 2,
+    "memoryInMb": 2048,
+    "name": "Standard_B1ms",
+    "numberOfCores": 1,
+    "osDiskSizeInMb": 1047552,
+    "resourceDiskSizeInMb": 4096
+  },
+  {
+    "maxDataDiskCount": 2,
+。。。。。。
+
+[r-user@test-vm ~]$ az account list-locations
+[
+  {
+    "displayName": "East Asia",
+    "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/locations/eastasia",
+    "latitude": "22.267",
+    "longitude": "114.188",
+    "name": "eastasia",
+    "subscriptionId": null
+  },
+  {
+    "displayName": "Southeast Asia",
+    "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/locations/southeastasia",
+    "latitude": "1.283",
+    "longitude": "103.833",
+    "name": "southeastasia",
+    "subscriptionId": null
+  },
+  {
+    "displayName": "Central US",
+    "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/locations/centralus",
+    "latitude": "41.5908",
+    "longitude": "-93.6208",
+    "name": "centralus",
+    "subscriptionId": null
+  },
+  {
+    "displayName": "East US",
+    "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/locations/eastus",
+    "latitude": "37.3719",
+    "longitude": "-79.8164",
+    "name": "eastus",
+    "subscriptionId": null
+  },
+  {
+    "displayName": "East US 2",
+    "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/locations/eastus2",
+    "latitude": "36.6681",
+    "longitude": "-78.3889",
+    "name": "eastus2",
+    "subscriptionId": null
+  },
+  {
+    "displayName": "West US",
+    "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/locations/westus",
+    "latitude": "37.783",
+    "longitude": "-122.417",
+    "name": "westus",
+    "subscriptionId": null
+  },
+  {
+    "displayName": "North Central US",
+    "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/locations/northcentralus",
+    "latitude": "41.8819",
+    "longitude": "-87.6278",
+    "name": "northcentralus",
+    "subscriptionId": null
+  },
+  {
+    "displayName": "South Central US",
+    "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/locations/southcentralus",
+    "latitude": "29.4167",
+    "longitude": "-98.5",
+    "name": "southcentralus",
+    "subscriptionId": null
+  },
+  {
+    "displayName": "North Europe",
+    "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/locations/northeurope",
+    "latitude": "53.3478",
+    "longitude": "-6.2597",
+    "name": "northeurope",
+    "subscriptionId": null
+  },
+  {
+    "displayName": "West Europe",
+    "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/locations/westeurope",
+    "latitude": "52.3667",
+    "longitude": "4.9",
+    "name": "westeurope",
+    "subscriptionId": null
+  },
+  {
+    "displayName": "Japan West",
+    "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/locations/japanwest",
+    "latitude": "34.6939",
+    "longitude": "135.5022",
+    "name": "japanwest",
+    "subscriptionId": null
+  },
+  {
+    "displayName": "Japan East",
+    "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/locations/japaneast",
+    "latitude": "35.68",
+    "longitude": "139.77",
+    "name": "japaneast",
+    "subscriptionId": null
+  },
+  {
+    "displayName": "Brazil South",
+    "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/locations/brazilsouth",
+    "latitude": "-23.55",
+    "longitude": "-46.633",
+    "name": "brazilsouth",
+    "subscriptionId": null
+  },
+  {
+    "displayName": "Australia East",
+    "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/locations/australiaeast",
+    "latitude": "-33.86",
+    "longitude": "151.2094",
+    "name": "australiaeast",
+    "subscriptionId": null
+  },
+  {
+    "displayName": "Australia Southeast",
+    "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/locations/australiasoutheast",
+    "latitude": "-37.8136",
+    "longitude": "144.9631",
+    "name": "australiasoutheast",
+    "subscriptionId": null
+  },
+  {
+    "displayName": "South India",
+    "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/locations/southindia",
+    "latitude": "12.9822",
+    "longitude": "80.1636",
+    "name": "southindia",
+    "subscriptionId": null
+  },
+  {
+    "displayName": "Central India",
+    "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/locations/centralindia",
+    "latitude": "18.5822",
+    "longitude": "73.9197",
+    "name": "centralindia",
+    "subscriptionId": null
+  },
+  {
+    "displayName": "West India",
+    "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/locations/westindia",
+    "latitude": "19.088",
+    "longitude": "72.868",
+    "name": "westindia",
+    "subscriptionId": null
+  },
+  {
+    "displayName": "Canada Central",
+    "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/locations/canadacentral",
+    "latitude": "43.653",
+    "longitude": "-79.383",
+    "name": "canadacentral",
+    "subscriptionId": null
+  },
+  {
+    "displayName": "Canada East",
+    "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/locations/canadaeast",
+    "latitude": "46.817",
+    "longitude": "-71.217",
+    "name": "canadaeast",
+    "subscriptionId": null
+  },
+  {
+    "displayName": "UK South",
+    "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/locations/uksouth",
+    "latitude": "50.941",
+    "longitude": "-0.799",
+    "name": "uksouth",
+    "subscriptionId": null
+  },
+  {
+    "displayName": "UK West",
+    "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/locations/ukwest",
+    "latitude": "53.427",
+    "longitude": "-3.084",
+    "name": "ukwest",
+    "subscriptionId": null
+  },
+  {
+    "displayName": "West Central US",
+    "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/locations/westcentralus",
+    "latitude": "40.890",
+    "longitude": "-110.234",
+    "name": "westcentralus",
+    "subscriptionId": null
+  },
+  {
+    "displayName": "West US 2",
+    "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/locations/westus2",
+    "latitude": "47.233",
+    "longitude": "-119.852",
+    "name": "westus2",
+    "subscriptionId": null
+  },
+  {
+    "displayName": "Korea Central",
+    "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/locations/koreacentral",
+    "latitude": "37.5665",
+    "longitude": "126.9780",
+    "name": "koreacentral",
+    "subscriptionId": null
+  },
+  {
+    "displayName": "Korea South",
+    "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/locations/koreasouth",
+    "latitude": "35.1796",
+    "longitude": "129.0756",
+    "name": "koreasouth",
+    "subscriptionId": null
+  },
+  {
+    "displayName": "France Central",
+    "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/locations/francecentral",
+    "latitude": "46.3772",
+    "longitude": "2.3730",
+    "name": "francecentral",
+    "subscriptionId": null
+  },
+  {
+    "displayName": "France South",
+    "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/locations/francesouth",
+    "latitude": "43.8345",
+    "longitude": "2.1972",
+    "name": "francesouth",
+    "subscriptionId": null
+  },
+  {
+    "displayName": "Australia Central",
+    "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/locations/australiacentral",
+    "latitude": "-35.3075",
+    "longitude": "149.1244",
+    "name": "australiacentral",
+    "subscriptionId": null
+  },
+  {
+    "displayName": "Australia Central 2",
+    "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/locations/australiacentral2",
+    "latitude": "-35.3075",
+    "longitude": "149.1244",
+    "name": "australiacentral2",
+    "subscriptionId": null
+  },
+  {
+    "displayName": "UAE Central",
+    "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/locations/uaecentral",
+    "latitude": "24.466667",
+    "longitude": "54.366669",
+    "name": "uaecentral",
+    "subscriptionId": null
+  },
+  {
+    "displayName": "UAE North",
+    "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/locations/uaenorth",
+    "latitude": "25.266666",
+    "longitude": "55.316666",
+    "name": "uaenorth",
+    "subscriptionId": null
+  },
+  {
+    "displayName": "South Africa North",
+    "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/locations/southafricanorth",
+    "latitude": "-25.731340",
+    "longitude": "28.218370",
+    "name": "southafricanorth",
+    "subscriptionId": null
+  },
+  {
+    "displayName": "South Africa West",
+    "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/locations/southafricawest",
+    "latitude": "-34.075691",
+    "longitude": "18.843266",
+    "name": "southafricawest",
+    "subscriptionId": null
+  },
+  {
+    "displayName": "Switzerland North",
+    "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/locations/switzerlandnorth",
+    "latitude": "47.451542",
+    "longitude": "8.564572",
+    "name": "switzerlandnorth",
+    "subscriptionId": null
+  },
+  {
+    "displayName": "Switzerland West",
+    "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/locations/switzerlandwest",
+    "latitude": "46.204391",
+    "longitude": "6.143158",
+    "name": "switzerlandwest",
+    "subscriptionId": null
+  },
+  {
+    "displayName": "Germany North",
+    "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/locations/germanynorth",
+    "latitude": "53.073635",
+    "longitude": "8.806422",
+    "name": "germanynorth",
+    "subscriptionId": null
+  },
+  {
+    "displayName": "Germany West Central",
+    "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/locations/germanywestcentral",
+    "latitude": "50.110924",
+    "longitude": "8.682127",
+    "name": "germanywestcentral",
+    "subscriptionId": null
+  },
+  {
+    "displayName": "Norway West",
+    "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/locations/norwaywest",
+    "latitude": "58.969975",
+    "longitude": "5.733107",
+    "name": "norwaywest",
+    "subscriptionId": null
+  },
+  {
+    "displayName": "Norway East",
+    "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/locations/norwayeast",
+    "latitude": "59.913868",
+    "longitude": "10.752245",
+    "name": "norwayeast",
+    "subscriptionId": null
+  }
+]
+
+一会会创建“Standard_DS2_v2”虚机，先查看一下：
+[r-user@test-vm ~]$ az vm list-sizes --location japaneast | grep -B3 -A3 Standard_DS2_v2
+  {
+    "maxDataDiskCount": 8,
+    "memoryInMb": 7168,
+    "name": "Standard_DS2_v2",
+    "numberOfCores": 2,
+    "osDiskSizeInMb": 1047552,
+    "resourceDiskSizeInMb": 14336
+--
+  {
+    "maxDataDiskCount": 8,
+    "memoryInMb": 7168,
+    "name": "Standard_DS2_v2_Promo",
+    "numberOfCores": 2,
+    "osDiskSizeInMb": 1047552,
+    "resourceDiskSizeInMb": 14336
+
+最后别忘了：
+[r-user@test-vm ~]$ az logout
+[r-user@test-vm ~]$ az vm list-sizes --location japaneast
+No subscription found. Run 'az account set' to select a subscription.
+
+
+
+
+
+
 
 
 
