@@ -1,1 +1,0 @@
-ssh -i C:\Users\song.liu\Documents\sample-key-001.pem r-user@103.136.153.92

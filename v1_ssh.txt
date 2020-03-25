@@ -3616,6 +3616,15 @@ write-random-test-1010
 
 
 
+★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★
+★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★
+★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★
+
+★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★
+★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★
+★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★
+
+https://github.com/hashicorp/terraform-azurerm-consul
 
 ■ 制作image
 
@@ -3761,6 +3770,29 @@ Dependency Installed:
   python3.x86_64 0:3.6.8-10.el7                 python3-libs.x86_64 0:3.6.8-10.el7                 python3-pip.noarch 0:9.0.3-5.el7                 python3-setuptools.noarch 0:39.2.0-10.el7
 
 Complete!
+
+[r-user@test-vm ~]$ az --version
+azure-cli                          2.2.0
+
+command-modules-nspkg              2.0.3
+core                               2.2.0
+nspkg                              3.0.4
+telemetry                          1.0.4
+
+Python location '/usr/bin/python3'
+Extensions directory '/home/r-user/.azure/cliextensions'
+
+Python (Linux) 3.6.8 (default, Aug  7 2019, 17:28:10)   
+[GCC 4.8.5 20150623 (Red Hat 4.8.5-39)]
+
+Legal docs and information: aka.ms/AzureCliLegal        
+
+
+
+Your CLI is up-to-date.
+
+Please let us know how we are doing: https://aka.ms/clihats
+
 
 下面命令会需要在浏览器中输入认证口令，确认自己的登录账号后自动返回方括号内的信息。
 [r-user@test-vm ~]$ az login
@@ -3944,7 +3976,7 @@ export ARM_CLIENT_SECRET=1a2f9dce-f637-4699-a1ed-5653a0bf0e2c
 export ARM_TENANT_ID=53a8b0d9-d900-48cc-9d7e-5935dc8d5b17
 
 
-最后做个测试：
+然后做个测试：
 [r-user@test-vm ~]$ az login --service-principal -u $ARM_CLIENT_ID -p $ARM_CLIENT_SECRET --tenant $ARM_TENANT_ID
 [
   {
@@ -3962,6 +3994,9 @@ export ARM_TENANT_ID=53a8b0d9-d900-48cc-9d7e-5935dc8d5b17
     }
   }
 ]
+
+[r-user@test-vm ~]$ az account show --query id
+"6906f1b4-5e2d-4acf-bde6-db6d729ea826"
 
 登录之后就可以查看比如West US region的虚机大小之类的操作了。
 [r-user@test-vm ~]$ az vm list-sizes --location westus | more
@@ -4328,13 +4363,1068 @@ export ARM_TENANT_ID=53a8b0d9-d900-48cc-9d7e-5935dc8d5b17
     "osDiskSizeInMb": 1047552,
     "resourceDiskSizeInMb": 14336
 
+ 
+[r-user@test-vm ~]$ az vm list-sizes -l japaneast | jq -r '.[]  | [.name, .numberOfCores, .memoryInMb, .osDiskSizeInMb, .resourceDiskSizeInMb] | @tsv' | sort | column -t -s $'t'
+Basic_A0        1       768     1047552 20480
+Basic_A1        1       1792    1047552 40960
+Basic_A2        2       3584    1047552 61440
+Basic_A3        4       7168    1047552 122880
+Basic_A4        8       14336   1047552 245760
+S  andard_A0    1       768     1047552 20480
+S  andard_A1    1       1792    1047552 71680
+S  andard_A1_v2 1       2048    1047552 10240
+S  andard_A2    2       3584    1047552 138240
+S  andard_A2m_v2        2       16384   1047552 20480
+S  andard_A2_v2 2       4096    1047552 20480
+S  andard_A3    4       7168    1047552 291840
+S  andard_A4    8       14336   1047552 619520
+S  andard_A4m_v2        4       32768   1047552 40960
+S  andard_A4_v2 4       8192    1047552 40960
+S  andard_A5    2       14336   1047552 138240
+S  andard_A6    4       28672   1047552 291840
+S  andard_A7    8       57344   1047552 619520
+S  andard_A8m_v2        8       65536   1047552 81920
+S  andard_A8_v2 8       16384   1047552 81920
+S  andard_B12ms 12      49152   1047552 98304
+S  andard_B16ms 16      65536   1047552 131072
+S  andard_B1ls  1       512     1047552 4096
+S  andard_B1ms  1       2048    1047552 4096
+S  andard_B1s   1       1024    1047552 4096
+S  andard_B20ms 20      81920   1047552 163840
+S  andard_B2ms  2       8192    1047552 16384
+S  andard_B2s   2       4096    1047552 8192
+S  andard_B4ms  4       16384   1047552 32768
+S  andard_B8ms  8       32768   1047552 65536
+S  andard_D11   2       14336   1047552 102400
+S  andard_D1    1       3584    1047552 51200
+S  andard_D11_v2        2       14336   1047552 102400
+S  andard_D11_v2_Promo  2       14336   1047552 102400
+S  andard_D12   4       28672   1047552 204800
+S  andard_D12_v2        4       28672   1047552 204800
+S  andard_D12_v2_Promo  4       28672   1047552 204800
+S  andard_D13   8       57344   1047552 409600
+S  andard_D13_v2        8       57344   1047552 409600
+S  andard_D13_v2_Promo  8       57344   1047552 409600
+S  andard_D14   16      114688  1047552 819200
+S  andard_D14_v2        16      114688  1047552 819200
+S  andard_D14_v2_Promo  16      114688  1047552 819200
+S  andard_D15_v2        20      143360  1047552 1024000
+S  andard_D16s_v3       16      65536   1047552 131072
+S  andard_D16_v3        16      65536   1047552 409600
+S  andard_D1_v2 1       3584    1047552 51200
+S  andard_D2    2       7168    1047552 102400
+S  andard_D2s_v3        2       8192    1047552 16384
+S  andard_D2_v2 2       7168    1047552 102400
+S  andard_D2_v2_Promo   2       7168    1047552 102400
+S  andard_D2_v3 2       8192    1047552 51200
+S  andard_D32s_v3       32      131072  1047552 262144
+S  andard_D32_v3        32      131072  1047552 819200
+S  andard_D3    4       14336   1047552 204800
+S  andard_D3_v2 4       14336   1047552 204800
+S  andard_D3_v2_Promo   4       14336   1047552 204800
+S  andard_D4    8       28672   1047552 409600
+S  andard_D48s_v3       48      196608  1047552 393216
+S  andard_D48_v3        48      196608  1047552 1228800
+S  andard_D4s_v3        4       16384   1047552 32768
+S  andard_D4_v2 8       28672   1047552 409600
+S  andard_D4_v2_Promo   8       28672   1047552 409600
+S  andard_D4_v3 4       16384   1047552 102400
+S  andard_D5_v2 16      57344   1047552 819200
+S  andard_D5_v2_Promo   16      57344   1047552 819200
+S  andard_D64s_v3       64      262144  1047552 524288
+S  andard_D64_v3        64      262144  1047552 1638400
+S  andard_D8s_v3        8       32768   1047552 65536
+S  andard_D8_v3 8       32768   1047552 204800
+S  andard_DS11-1_v2     2       14336   1047552 28672
+S  andard_DS11  2       14336   1047552 28672
+S  andard_DS1   1       3584    1047552 7168
+S  andard_DS11_v2       2       14336   1047552 28672
+S  andard_DS11_v2_Promo 2       14336   1047552 28672
+S  andard_DS12-1_v2     4       28672   1047552 57344
+S  andard_DS12-2_v2     4       28672   1047552 57344
+S  andard_DS12  4       28672   1047552 57344
+S  andard_DS12_v2       4       28672   1047552 57344
+S  andard_DS12_v2_Promo 4       28672   1047552 57344
+S  andard_DS13-2_v2     8       57344   1047552 114688
+S  andard_DS13-4_v2     8       57344   1047552 114688
+S  andard_DS13  8       57344   1047552 114688
+S  andard_DS13_v2       8       57344   1047552 114688
+S  andard_DS13_v2_Promo 8       57344   1047552 114688
+S  andard_DS14  16      114688  1047552 229376
+S  andard_DS14-4_v2     16      114688  1047552 229376
+S  andard_DS14-8_v2     16      114688  1047552 229376
+S  andard_DS14_v2       16      114688  1047552 229376
+S  andard_DS14_v2_Promo 16      114688  1047552 229376
+S  andard_DS15_v2       20      143360  1047552 286720
+S  andard_DS1_v2        1       3584    1047552 7168
+S  andard_DS2   2       7168    1047552 14336
+S  andard_DS2_v2        2       7168    1047552 14336
+S  andard_DS2_v2_Promo  2       7168    1047552 14336
+S  andard_DS3   4       14336   1047552 28672
+S  andard_DS3_v2        4       14336   1047552 28672
+S  andard_DS3_v2_Promo  4       14336   1047552 28672
+S  andard_DS4   8       28672   1047552 57344
+S  andard_DS4_v2        8       28672   1047552 57344
+S  andard_DS4_v2_Promo  8       28672   1047552 57344
+S  andard_DS5_v2        16      57344   1047552 114688
+S  andard_DS5_v2_Promo  16      57344   1047552 114688
+S  andard_E16-4s_v3     16      131072  1047552 262144
+S  andard_E16-8s_v3     16      131072  1047552 262144
+S  andard_E16s_v3       16      131072  1047552 262144
+S  andard_E16_v3        16      131072  1047552 409600
+S  andard_E20s_v3       20      163840  1047552 327680
+S  andard_E20_v3        20      163840  1047552 512000
+S  andard_E2s_v3        2       16384   1047552 32768
+S  andard_E2_v3 2       16384   1047552 51200
+S  andard_E32-16s_v3    32      262144  1047552 524288
+S  andard_E32-8s_v3     32      262144  1047552 524288
+S  andard_E32s_v3       32      262144  1047552 524288
+S  andard_E32_v3        32      262144  1047552 819200
+S  andard_E4-2s_v3      4       32768   1047552 65536
+S  andard_E48s_v3       48      393216  1047552 786432
+S  andard_E48_v3        48      393216  1047552 1228800
+S  andard_E4s_v3        4       32768   1047552 65536
+S  andard_E4_v3 4       32768   1047552 102400
+S  andard_E64-16s_v3    64      442368  1047552 884736
+S  andard_E64-32s_v3    64      442368  1047552 884736
+S  andard_E64is_v3      64      442368  1047552 884736
+S  andard_E64i_v3       64      442368  1047552 1638400
+S  andard_E64s_v3       64      442368  1047552 884736
+S  andard_E64_v3        64      442368  1047552 1638400
+S  andard_E8-2s_v3      8       65536   1047552 131072
+S  andard_E8-4s_v3      8       65536   1047552 131072
+S  andard_E8s_v3        8       65536   1047552 131072
+S  andard_E8_v3 8       65536   1047552 204800
+S  andard_F1    1       2048    1047552 16384
+S  andard_F16   16      32768   1047552 262144
+S  andard_F16s  16      32768   1047552 65536
+S  andard_F16s_v2       16      32768   1047552 131072
+S  andard_F1s   1       2048    1047552 4096
+S  andard_F2    2       4096    1047552 32768
+S  andard_F2s   2       4096    1047552 8192
+S  andard_F2s_v2        2       4096    1047552 16384
+S  andard_F32s_v2       32      65536   1047552 262144
+S  andard_F4    4       8192    1047552 65536
+S  andard_F48s_v2       48      98304   1047552 393216
+S  andard_F4s   4       8192    1047552 16384
+S  andard_F4s_v2        4       8192    1047552 32768
+S  andard_F64s_v2       64      131072  1047552 524288
+S  andard_F72s_v2       72      147456  1047552 589824
+S  andard_F8    8       16384   1047552 131072
+S  andard_F8s   8       16384   1047552 32768
+S  andard_F8s_v2        8       16384   1047552 65536
+S  andard_G1    2       28672   1047552 393216
+S  andard_G2    4       57344   1047552 786432
+S  andard_G3    8       114688  1047552 1572864
+S  andard_G4    16      229376  1047552 3145728
+S  andard_G5    32      458752  1047552 6291456
+S  andard_GS1   2       28672   1047552 57344
+S  andard_GS2   4       57344   1047552 114688
+S  andard_GS3   8       114688  1047552 229376
+S  andard_GS4   16      229376  1047552 458752
+S  andard_GS4-4 16      229376  1047552 458752
+S  andard_GS4-8 16      229376  1047552 458752
+S  andard_GS5-16        32      458752  1047552 917504
+S  andard_GS5   32      458752  1047552 917504
+S  andard_GS5-8 32      458752  1047552 917504
+S  andard_H16   16      114688  1047552 2048000
+S  andard_H16m  16      229376  1047552 2048000
+S  andard_H16m_Promo    16      229376  1047552 2048000
+S  andard_H16mr 16      229376  1047552 2048000
+S  andard_H16mr_Promo   16      229376  1047552 2048000
+S  andard_H16_Promo     16      114688  1047552 2048000
+S  andard_H16r  16      114688  1047552 2048000
+S  andard_H16r_Promo    16      114688  1047552 2048000
+S  andard_H8    8       57344   1047552 1024000
+S  andard_H8m   8       114688  1047552 1024000
+S  andard_H8m_Promo     8       114688  1047552 1024000
+S  andard_H8_Promo      8       57344   1047552 1024000
+S  andard_HC44rs        44      335693  1047552 716800
+S  andard_L16s  16      131072  1047552 2874368
+S  andard_L32s  32      262144  1047552 5765120
+S  andard_L4s   4       32768   1047552 694272
+S  andard_L8s   8       65536   1047552 1421312
+S  andard_M128  128     2048000 1047552 16384000
+S  andard_M128-32ms     128     3891200 1047552 4096000
+S  andard_M128-64ms     128     3891200 1047552 4096000
+S  andard_M128m 128     3891200 1047552 16384000
+S  andard_M128ms        128     3891200 1047552 4096000
+S  andard_M128s 128     2048000 1047552 4096000
+S  andard_M16-4ms       16      448000  1047552 512000
+S  andard_M16-8ms       16      448000  1047552 512000
+S  andard_M16ms 16      448000  1047552 512000
+S  andard_M32-16ms      32      896000  1047552 1024000
+S  andard_M32-8ms       32      896000  1047552 1024000
+S  andard_M32ls 32      262144  1047552 1024000
+S  andard_M32ms 32      896000  1047552 1024000
+S  andard_M32  s        32      196608  1047552 1024000
+S  andard_M64-16ms      64      1792000 1047552 2048000
+S  andard_M64-32ms      64      1792000 1047552 2048000
+S  andard_M64   64      1024000 1047552 8192000
+S  andard_M64ls 64      524288  1047552 2048000
+S  andard_M64m  64      1792000 1047552 8192000
+S  andard_M64ms 64      1792000 1047552 2048000
+S  andard_M64s  64      1024000 1047552 2048000
+S  andard_M8-2ms        8       224000  1047552 256000
+S  andard_M8-4ms        8       224000  1047552 256000
+S  andard_M8ms  8       224000  1047552 256000
+S  andard_NC12s_v3      12      229376  1047552 688128
+S  andard_NC24rs_v3     24      458752  1047552 1376256
+S  andard_NC24s_v3      24      458752  1047552 1376256
+S  andard_NC6s_v3       6       114688  1047552 344064
+S  andard_NV12  12      114688  1047552 696320
+S  andard_NV12_Promo    12      114688  1047552 696320
+S  andard_NV12s_v2      12      229376  1047552 688128
+S  andard_NV12s_v3      12      114688  1047552 344064
+S  andard_NV24  24      229376  1047552 1474560
+S  andard_NV24_Promo    24      229376  1047552 1474560
+S  andard_NV24s_v2      24      458752  1047552 1376256
+S  andard_NV24s_v3      24      229376  1047552 688128
+S  andard_NV48s_v3      48      458752  1047552 1376256
+S  andard_NV6   6       57344   1047552 389120
+S  andard_NV6_Promo     6       57344   1047552 389120
+S  andard_NV6s_v2       6       114688  1047552 344064
+
+
+
+实际上上面的这个命令看到的很多sku是没有的？？有点奇怪。。。
+用下面的命令看region所支持的sku。比如Standard_F的虚机sku列表。
+[r-user@test-vm vault-demo]$ az vm list-skus --location japaneast --size Standard_F --output table
+ResourceType     Locations    Name              Zones    Capabilities
+
+                                                                                                                                                                                                                  Restrictions
+---------------  -----------  ----------------  -------  ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------  --------------
+virtualMachines  japaneast    Standard_F2s_v2   1,2,3    ['MaxResourceVolumeMB=16384', 'OSVhdSizeMB=1047552', 'vCPUs=2', 'HyperVGenerations=V1,V2', 'MemoryGB=4', 'MaxDataDiskCount=4', 'LowPriorityCapable=True', 'PremiumIO=True', 'VMDeploymentTypes=IaaS', 'vCPUsAvailable=2', 'ACUs=195', 'vCPUsPerCore=2', 'CombinedTempDiskAndCachedIOPS=4000', 'CombinedTempDiskAndCachedReadBytesPerSecond=32505856', 'CombinedTempDiskAndCachedWriteBytesPerSecond=32505856', 'CachedDiskBytes=34359738368', 'UncachedDiskIOPS=3200', 'UncachedDiskBytesPerSecond=49283072', 'EphemeralOSDiskSupported=True', 'AcceleratedNetworkingEnabled=False', 'RdmaEnabled=False', 'MaxNetworkInterfaces=2']                  None
+virtualMachines  japaneast    Standard_F4s_v2   1,2,3    ['MaxResourceVolumeMB=32768', 'OSVhdSizeMB=1047552', 'vCPUs=4', 'HyperVGenerations=V1,V2', 'MemoryGB=8', 'MaxDataDiskCount=8', 'LowPriorityCapable=True', 'PremiumIO=True', 'VMDeploymentTypes=IaaS', 'vCPUsAvailable=4', 'ACUs=195', 'vCPUsPerCore=2', 'CombinedTempDiskAndCachedIOPS=8000', 'CombinedTempDiskAndCachedReadBytesPerSecond=66060288', 'CombinedTempDiskAndCachedWriteBytesPerSecond=66060288', 'CachedDiskBytes=68719476736', 'UncachedDiskIOPS=6400', 'UncachedDiskBytesPerSecond=49283072', 'EphemeralOSDiskSupported=True', 'AcceleratedNetworkingEnabled=True', 'RdmaEnabled=False', 'MaxNetworkInterfaces=2']                   None
+virtualMachines  japaneast    Standard_F8s_v2   1,2,3    ['MaxResourceVolumeMB=65536', 'OSVhdSizeMB=1047552', 'vCPUs=8', 'HyperVGenerations=V1,V2', 'MemoryGB=16', 'MaxDataDiskCount=16', 'LowPriorityCapable=True', 'PremiumIO=True', 'VMDeploymentTypes=IaaS', 'vCPUsAvailable=8', 'ACUs=195', 'vCPUsPerCore=2', 'CombinedTempDiskAndCachedIOPS=16000', 'CombinedTempDiskAndCachedReadBytesPerSecond=133169152', 'CombinedTempDiskAndCachedWriteBytesPerSecond=133169152', 'CachedDiskBytes=137438953472', 'UncachedDiskIOPS=12800', 'UncachedDiskBytesPerSecond=199229440', 'EphemeralOSDiskSupported=True', 'AcceleratedNetworkingEnabled=True', 'RdmaEnabled=False', 'MaxNetworkInterfaces=4']           None
+virtualMachines  japaneast    Standard_F16s_v2  1,2,3    ['MaxResourceVolumeMB=131072', 'OSVhdSizeMB=1047552', 'vCPUs=16', 'HyperVGenerations=V1,V2', 'MemoryGB=32', 'MaxDataDiskCount=32', 'LowPriorityCapable=True', 'PremiumIO=True', 'VMDeploymentTypes=IaaS', 'vCPUsAvailable=16', 'ACUs=195', 'vCPUsPerCore=2', 'CombinedTempDiskAndCachedIOPS=32000', 'CombinedTempDiskAndCachedReadBytesPerSecond=267386880', 'CombinedTempDiskAndCachedWriteBytesPerSecond=267386880', 'CachedDiskBytes=274877906944', 'UncachedDiskIOPS=25600', 'UncachedDiskBytesPerSecond=398458880', 'EphemeralOSDiskSupported=True', 'AcceleratedNetworkingEnabled=True', 'RdmaEnabled=False', 'MaxNetworkInterfaces=4']        None
+virtualMachines  japaneast    Standard_F32s_v2  1,2,3    ['MaxResourceVolumeMB=262144', 'OSVhdSizeMB=1047552', 'vCPUs=32', 'HyperVGenerations=V1,V2', 'MemoryGB=64', 'MaxDataDiskCount=32', 'LowPriorityCapable=True', 'PremiumIO=True', 'VMDeploymentTypes=IaaS', 'vCPUsAvailable=32', 'ACUs=195', 'vCPUsPerCore=2', 'CombinedTempDiskAndCachedIOPS=64000', 'CombinedTempDiskAndCachedReadBytesPerSecond=536870912', 'CombinedTempDiskAndCachedWriteBytesPerSecond=536870912', 'CachedDiskBytes=549755813888', 'UncachedDiskIOPS=51200', 'UncachedDiskBytesPerSecond=786432000', 'EphemeralOSDiskSupported=True', 'AcceleratedNetworkingEnabled=True', 'RdmaEnabled=False', 'MaxNetworkInterfaces=8']        None
+virtualMachines  japaneast    Standard_F48s_v2  1,2,3    ['MaxResourceVolumeMB=393216', 'OSVhdSizeMB=1047552', 'vCPUs=48', 'HyperVGenerations=V1,V2', 'MemoryGB=96', 'MaxDataDiskCount=32', 'LowPriorityCapable=True', 'PremiumIO=True', 'VMDeploymentTypes=IaaS', 'vCPUsAvailable=48', 'ACUs=195', 'vCPUsPerCore=2', 'CombinedTempDiskAndCachedIOPS=96000', 'CombinedTempDiskAndCachedReadBytesPerSecond=805306368', 'CombinedTempDiskAndCachedWriteBytesPerSecond=805306368', 'CachedDiskBytes=824633720832', 'UncachedDiskIOPS=76800', 'UncachedDiskBytesPerSecond=1153433600', 'EphemeralOSDiskSupported=True', 'AcceleratedNetworkingEnabled=True', 'RdmaEnabled=False', 'MaxNetworkInterfaces=8']       None
+virtualMachines  japaneast    Standard_F64s_v2  1,2,3    ['MaxResourceVolumeMB=524288', 'OSVhdSizeMB=1047552', 'vCPUs=64', 'HyperVGenerations=V1,V2', 'MemoryGB=128', 'MaxDataDiskCount=32', 'LowPriorityCapable=True', 'PremiumIO=True', 'VMDeploymentTypes=IaaS', 'vCPUsAvailable=64', 'ACUs=195', 'vCPUsPerCore=2', 'CombinedTempDiskAndCachedIOPS=128000', 'CombinedTempDiskAndCachedReadBytesPerSecond=1073741824', 'CombinedTempDiskAndCachedWriteBytesPerSecond=1073741824', 'CachedDiskBytes=1099511627776', 'UncachedDiskIOPS=80000', 'UncachedDiskBytesPerSecond=1153433600', 'EphemeralOSDiskSupported=True', 'AcceleratedNetworkingEnabled=True', 'RdmaEnabled=False', 'MaxNetworkInterfaces=8']  None
+virtualMachines  japaneast    Standard_F72s_v2  1,2,3    ['MaxResourceVolumeMB=589824', 'OSVhdSizeMB=1047552', 'vCPUs=72', 'HyperVGenerations=V1,V2', 'MemoryGB=144', 'MaxDataDiskCount=32', 'LowPriorityCapable=True', 'PremiumIO=True', 'VMDeploymentTypes=IaaS', 'vCPUsAvailable=72', 'ACUs=195', 'vCPUsPerCore=2', 'CombinedTempDiskAndCachedIOPS=144000', 'CombinedTempDiskAndCachedReadBytesPerSecond=1207959552', 'CombinedTempDiskAndCachedWriteBytesPerSecond=1207959552', 'CachedDiskBytes=1632087572480', 'UncachedDiskIOPS=80000', 'UncachedDiskBytesPerSecond=1153433600', 'EphemeralOSDiskSupported=True', 'AcceleratedNetworkingEnabled=True', 'RdmaEnabled=False', 'MaxNetworkInterfaces=8']  None
+
+
+
+为了创建image，必须预先创建resource group，名字叫做consul。
+[r-user@test-vm vault-demo]$ az group create -n consul -l japaneast
+{
+  "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/resourceGroups/consul",
+  "location": "japaneast",
+  "managedBy": null,
+  "name": "consul",
+  "properties": {
+    "provisioningState": "Succeeded"
+  },
+  "tags": null,
+  "type": "Microsoft.Resources/resourceGroups"
+}
+
+
+
+
+
 最后别忘了：
 [r-user@test-vm ~]$ az logout
 [r-user@test-vm ~]$ az vm list-sizes --location japaneast
 No subscription found. Run 'az account set' to select a subscription.
 
+查看常用的image，不用login，因为只是在本地cache查找。
+[r-user@test-vm vault-demo]$ az vm image list --output table
+You are viewing an offline list of images, use --all to retrieve an up-to-date list
+Offer          Publisher               Sku                 Urn                                                             UrnAlias             Version
+-------------  ----------------------  ------------------  --------------------------------------------------------------  -------------------  ---------
+CentOS         OpenLogic               7.5                 OpenLogic:CentOS:7.5:latest                                     CentOS               latest
+CoreOS         CoreOS                  Stable              CoreOS:CoreOS:Stable:latest                                     CoreOS               latest
+debian-10      Debian                  10                  Debian:debian-10:10:latest                                      Debian               latest
+openSUSE-Leap  SUSE                    42.3                SUSE:openSUSE-Leap:42.3:latest                                  openSUSE-Leap        latest
+RHEL           RedHat                  7-LVM               RedHat:RHEL:7-LVM:latest                                        RHEL                 latest
+SLES           SUSE                    15                  SUSE:SLES:15:latest                                             SLES                 latest
+UbuntuServer   Canonical               18.04-LTS           Canonical:UbuntuServer:18.04-LTS:latest                         UbuntuLTS            latest
+WindowsServer  MicrosoftWindowsServer  2019-Datacenter     MicrosoftWindowsServer:WindowsServer:2019-Datacenter:latest     Win2019Datacenter    latest
+WindowsServer  MicrosoftWindowsServer  2016-Datacenter     MicrosoftWindowsServer:WindowsServer:2016-Datacenter:latest     Win2016Datacenter    latest
+WindowsServer  MicrosoftWindowsServer  2012-R2-Datacenter  MicrosoftWindowsServer:WindowsServer:2012-R2-Datacenter:latest  Win2012R2Datacenter  latest
+WindowsServer  MicrosoftWindowsServer  2012-Datacenter     MicrosoftWindowsServer:WindowsServer:2012-Datacenter:latest     Win2012Datacenter    latest
+WindowsServer  MicrosoftWindowsServer  2008-R2-SP1         MicrosoftWindowsServer:WindowsServer:2008-R2-SP1:latest         Win2008R2SP1         latest
 
 
+也可以指定特定的image进行查找，但是有--all的这类命令需要login
+az vm image list --offer Debian --all --output table
+
+
+进行第一次的packer build，Terraform等配置文件没有任何修改，只是修改了Azure的配置部分。
+[r-user@test-vm vault-demo]$ ~/packer build consul.json
+azure-arm: output will be in this color.
+
+==> azure-arm: Running builder ...
+==> azure-arm: Getting tokens using client secret
+==> azure-arm: Getting tokens using client secret
+    azure-arm: Creating Azure Resource Manager (ARM) client ...
+==> azure-arm: WARNING: Zone resiliency may not be supported in japaneast, checkout the docs at https://docs.microsoft.com/en-us/azure/availability-zones/
+==> azure-arm: Creating resource group ...
+==> azure-arm:  -> ResourceGroupName : 'packer-Resource-Group-fmtsv4uco2'
+==> azure-arm:  -> Location          : 'japaneast'
+==> azure-arm:  -> Tags              :
+==> azure-arm:  ->> dept : Engineering
+==> azure-arm:  ->> task : Image deployment
+==> azure-arm: Validating deployment template ...
+==> azure-arm:  -> ResourceGroupName : 'packer-Resource-Group-fmtsv4uco2'
+==> azure-arm:  -> DeploymentName    : 'pkrdpfmtsv4uco2'
+==> azure-arm: Deploying deployment template ...
+==> azure-arm:  -> ResourceGroupName : 'packer-Resource-Group-fmtsv4uco2'
+==> azure-arm:  -> DeploymentName    : 'pkrdpfmtsv4uco2'
+==> azure-arm: Getting the VM's IP address ...
+==> azure-arm:  -> ResourceGroupName   : 'packer-Resource-Group-fmtsv4uco2'
+==> azure-arm:  -> PublicIPAddressName : 'pkripfmtsv4uco2'
+==> azure-arm:  -> NicName             : 'pkrnifmtsv4uco2'
+==> azure-arm:  -> Network Connection  : 'PublicEndpoint'
+==> azure-arm:  -> IP Address          : '20.37.97.30'
+==> azure-arm: Waiting for SSH to become available...
+==> azure-arm: Connected to SSH!
+==> azure-arm: Uploading /home/r-user/vault-demo/../terraform-azurerm-consul => /tmp
+==> azure-arm: Pausing 30s before the next provisioner...
+==> azure-arm: Provisioning with shell script: /tmp/packer-shell486930728
+    azure-arm: deb https://packages.microsoft.com/repos/azure-cli/ wheezy main
+    azure-arm: Executing: /tmp/tmp.PJZAmqu3yv/gpg.1.sh --keyserver
+    azure-arm: packages.microsoft.com
+==> azure-arm: gpg: requesting key BE1229CF from hkp server packages.microsoft.com
+    azure-arm: --recv-keys
+    azure-arm: EB3E94ADBE1229CF
+==> azure-arm: gpg: key BE1229CF: public key "Microsoft (Release signing) <gpgsecurity@microsoft.com>" imported
+==> azure-arm: gpg: Total number processed: 1
+==> azure-arm: gpg:               imported: 1  (RSA: 1)
+    azure-arm: Hit:1 http://azure.archive.ubuntu.com/ubuntu xenial InRelease
+    azure-arm: Get:2 http://azure.archive.ubuntu.com/ubuntu xenial-updates InRelease [109 kB]
+    azure-arm: Get:3 http://azure.archive.ubuntu.com/ubuntu xenial-backports InRelease [107 kB]
+    azure-arm: Get:4 http://azure.archive.ubuntu.com/ubuntu xenial/universe amd64 Packages [7,532 kB]
+    azure-arm: Get:5 http://security.ubuntu.com/ubuntu xenial-security InRelease [109 kB]
+    azure-arm: Get:6 https://packages.microsoft.com/repos/azure-cli wheezy InRelease [3,187 B]
+    azure-arm: Get:7 http://azure.archive.ubuntu.com/ubuntu xenial/universe Translation-en [4,354 kB]
+    azure-arm: Get:8 http://azure.archive.ubuntu.com/ubuntu xenial/multiverse amd64 Packages [144 kB]
+    azure-arm: Get:9 http://azure.archive.ubuntu.com/ubuntu xenial/multiverse Translation-en [106 kB]
+    azure-arm: Get:10 http://azure.archive.ubuntu.com/ubuntu xenial-updates/main amd64 Packages [1,120 kB]
+    azure-arm: Get:11 http://azure.archive.ubuntu.com/ubuntu xenial-updates/main Translation-en [427 kB]
+    azure-arm: Get:12 http://azure.archive.ubuntu.com/ubuntu xenial-updates/universe amd64 Packages [793 kB]
+    azure-arm: Get:13 https://packages.microsoft.com/repos/azure-cli wheezy/main amd64 Packages [12.0 kB]
+    azure-arm: Get:14 http://azure.archive.ubuntu.com/ubuntu xenial-updates/universe Translation-en [331 kB]
+    azure-arm: Get:15 http://azure.archive.ubuntu.com/ubuntu xenial-updates/multiverse amd64 Packages [16.8 kB]
+    azure-arm: Get:16 http://azure.archive.ubuntu.com/ubuntu xenial-updates/multiverse Translation-en [8,468 B]
+    azure-arm: Get:17 http://azure.archive.ubuntu.com/ubuntu xenial-backports/main amd64 Packages [7,280 B]
+    azure-arm: Get:18 http://azure.archive.ubuntu.com/ubuntu xenial-backports/main Translation-en [4,456 B]
+    azure-arm: Get:19 http://azure.archive.ubuntu.com/ubuntu xenial-backports/universe amd64 Packages [8,064 B]
+    azure-arm: Get:20 http://azure.archive.ubuntu.com/ubuntu xenial-backports/universe Translation-en [4,328 B]
+    azure-arm: Get:21 http://security.ubuntu.com/ubuntu xenial-security/main amd64 Packages [840 kB]
+    azure-arm: Get:22 http://security.ubuntu.com/ubuntu xenial-security/main Translation-en [319 kB]
+    azure-arm: Get:23 http://security.ubuntu.com/ubuntu xenial-security/universe amd64 Packages [487 kB]
+    azure-arm: Get:24 http://security.ubuntu.com/ubuntu xenial-security/universe Translation-en [199 kB]
+    azure-arm: Get:25 http://security.ubuntu.com/ubuntu xenial-security/multiverse amd64 Packages [5,728 B]
+    azure-arm: Get:26 http://security.ubuntu.com/ubuntu xenial-security/multiverse Translation-en [2,708 B]
+    azure-arm: Fetched 17.1 MB in 2s (5,952 kB/s)
+    azure-arm: Reading package lists...
+    azure-arm: Reading package lists...
+    azure-arm: Building dependency tree...
+    azure-arm: Reading state information...
+    azure-arm: apt-transport-https is already the newest version (1.2.32).
+    azure-arm: The following package was automatically installed and is no longer required:
+    azure-arm:   grub-pc-bin
+    azure-arm: Use 'sudo apt autoremove' to remove it.
+    azure-arm: The following additional packages will be installed:
+    azure-arm:   cpp cpp-5 dpkg-dev fakeroot g++ g++-5 gcc gcc-5 libalgorithm-diff-perl
+    azure-arm:   libalgorithm-diff-xs-perl libalgorithm-merge-perl libasan2 libatomic1
+    azure-arm:   libc-dev-bin libc6-dev libcc1-0 libcilkrts5 libdpkg-perl libexpat1-dev
+    azure-arm:   libfakeroot libfile-fcntllock-perl libgcc-5-dev libgomp1 libisl15 libitm1
+    azure-arm:   liblsan0 libmpc3 libmpx0 libpython-dev libpython2.7-dev libquadmath0
+    azure-arm:   libssl-doc libstdc++-5-dev libtsan0 libubsan0 linux-libc-dev make
+    azure-arm:   manpages-dev python2.7-dev zlib1g-dev
+    azure-arm: Suggested packages:
+    azure-arm:   cpp-doc gcc-5-locales debian-keyring g++-multilib g++-5-multilib gcc-5-doc
+    azure-arm:   libstdc++6-5-dbg gcc-multilib autoconf automake libtool flex bison gdb
+    azure-arm:   gcc-doc gcc-5-multilib libgcc1-dbg libgomp1-dbg libitm1-dbg libatomic1-dbg
+    azure-arm:   libasan2-dbg liblsan0-dbg libtsan0-dbg libubsan0-dbg libcilkrts5-dbg
+    azure-arm:   libmpx0-dbg libquadmath0-dbg glibc-doc libstdc++-5-doc make-doc
+    azure-arm: The following NEW packages will be installed:
+    azure-arm:   azure-cli build-essential cpp cpp-5 dpkg-dev fakeroot g++ g++-5 gcc gcc-5
+    azure-arm:   libalgorithm-diff-perl libalgorithm-diff-xs-perl libalgorithm-merge-perl
+    azure-arm:   libasan2 libatomic1 libc-dev-bin libc6-dev libcc1-0 libcilkrts5 libdpkg-perl
+    azure-arm:   libexpat1-dev libfakeroot libffi-dev libfile-fcntllock-perl libgcc-5-dev
+    azure-arm:   libgomp1 libisl15 libitm1 liblsan0 libmpc3 libmpx0 libpython-dev
+    azure-arm:   libpython2.7-dev libquadmath0 libssl-dev libssl-doc libstdc++-5-dev libtsan0
+    azure-arm:   libubsan0 linux-libc-dev make manpages-dev python-dev python2.7-dev
+    azure-arm:   zlib1g-dev
+    azure-arm: 0 upgraded, 45 newly installed, 0 to remove and 17 not upgraded.
+    azure-arm: Need to get 156 MB of archives.
+    azure-arm: After this operation, 569 MB of additional disk space will be used.
+    azure-arm: Get:1 http://azure.archive.ubuntu.com/ubuntu xenial/main amd64 libmpc3 amd64 1.0.3-1 [39.7 kB]
+    azure-arm: Get:2 http://azure.archive.ubuntu.com/ubuntu xenial-updates/main amd64 libc-dev-bin amd64 2.23-0ubuntu11 [68.5 kB]
+    azure-arm: Get:3 http://azure.archive.ubuntu.com/ubuntu xenial-updates/main amd64 linux-libc-dev amd64 4.4.0-176.206 [849 kB]
+    azure-arm: Get:4 http://azure.archive.ubuntu.com/ubuntu xenial-updates/main amd64 libc6-dev amd64 2.23-0ubuntu11 [2,086 kB]
+    azure-arm: Get:5 http://azure.archive.ubuntu.com/ubuntu xenial/main amd64 libisl15 amd64 0.16.1-1 [524 kB]
+    azure-arm: Get:6 http://azure.archive.ubuntu.com/ubuntu xenial-updates/main amd64 cpp-5 amd64 5.4.0-6ubuntu1~16.04.12 [7,783 kB]
+    azure-arm: Get:7 http://azure.archive.ubuntu.com/ubuntu xenial/main amd64 cpp amd64 4:5.3.1-1ubuntu1 [27.7 kB]
+    azure-arm: Get:8 http://azure.archive.ubuntu.com/ubuntu xenial-updates/main amd64 libcc1-0 amd64 5.4.0-6ubuntu1~16.04.12 [38.8 kB]
+    azure-arm: Get:9 http://azure.archive.ubuntu.com/ubuntu xenial-updates/main amd64 libgomp1 amd64 5.4.0-6ubuntu1~16.04.12 [55.2 kB]
+    azure-arm: Get:10 http://azure.archive.ubuntu.com/ubuntu xenial-updates/main amd64 libitm1 amd64 5.4.0-6ubuntu1~16.04.12 [27.4 kB]
+    azure-arm: Get:11 http://azure.archive.ubuntu.com/ubuntu xenial-updates/main amd64 libatomic1 amd64 5.4.0-6ubuntu1~16.04.12 [8,892 B]
+    azure-arm: Get:12 http://azure.archive.ubuntu.com/ubuntu xenial-updates/main amd64 libasan2 amd64 5.4.0-6ubuntu1~16.04.12 [265 kB]
+    azure-arm: Get:13 http://azure.archive.ubuntu.com/ubuntu xenial-updates/main amd64 liblsan0 amd64 5.4.0-6ubuntu1~16.04.12 [105 kB]
+    azure-arm: Get:14 http://azure.archive.ubuntu.com/ubuntu xenial-updates/main amd64 libtsan0 amd64 5.4.0-6ubuntu1~16.04.12 [244 kB]
+    azure-arm: Get:15 http://azure.archive.ubuntu.com/ubuntu xenial-updates/main amd64 libubsan0 amd64 5.4.0-6ubuntu1~16.04.12 [95.3 kB]
+    azure-arm: Get:16 http://azure.archive.ubuntu.com/ubuntu xenial-updates/main amd64 libcilkrts5 amd64 5.4.0-6ubuntu1~16.04.12 [40.0 kB]
+    azure-arm: Get:17 http://azure.archive.ubuntu.com/ubuntu xenial-updates/main amd64 libmpx0 amd64 5.4.0-6ubuntu1~16.04.12 [9,762 B]
+    azure-arm: Get:18 http://azure.archive.ubuntu.com/ubuntu xenial-updates/main amd64 libquadmath0 amd64 5.4.0-6ubuntu1~16.04.12 [131 kB]
+    azure-arm: Get:19 http://azure.archive.ubuntu.com/ubuntu xenial-updates/main amd64 libgcc-5-dev amd64 5.4.0-6ubuntu1~16.04.12 [2,239 kB]
+    azure-arm: Get:20 http://azure.archive.ubuntu.com/ubuntu xenial-updates/main amd64 gcc-5 amd64 5.4.0-6ubuntu1~16.04.12 [8,612 kB]
+    azure-arm: Get:21 http://azure.archive.ubuntu.com/ubuntu xenial/main amd64 gcc amd64 4:5.3.1-1ubuntu1 [5,244 B]
+    azure-arm: Get:22 http://azure.archive.ubuntu.com/ubuntu xenial-updates/main amd64 libstdc++-5-dev amd64 5.4.0-6ubuntu1~16.04.12 [1,428 kB]
+    azure-arm: Get:23 http://azure.archive.ubuntu.com/ubuntu xenial-updates/main amd64 g++-5 amd64 5.4.0-6ubuntu1~16.04.12 [8,430 kB]
+    azure-arm: Get:24 http://azure.archive.ubuntu.com/ubuntu xenial/main amd64 g++ amd64 4:5.3.1-1ubuntu1 [1,504 B]
+    azure-arm: Get:25 http://azure.archive.ubuntu.com/ubuntu xenial/main amd64 make amd64 4.1-6 [151 kB]
+    azure-arm: Get:26 http://azure.archive.ubuntu.com/ubuntu xenial-updates/main amd64 libdpkg-perl all 1.18.4ubuntu1.6 [195 kB]
+    azure-arm: Get:27 http://azure.archive.ubuntu.com/ubuntu xenial-updates/main amd64 dpkg-dev all 1.18.4ubuntu1.6 [584 kB]
+    azure-arm: Get:28 http://azure.archive.ubuntu.com/ubuntu xenial/main amd64 build-essential amd64 12.1ubuntu2 [4,758 B]
+    azure-arm: Get:29 http://azure.archive.ubuntu.com/ubuntu xenial/main amd64 libfakeroot amd64 1.20.2-1ubuntu1 [25.5 kB]
+    azure-arm: Get:30 http://azure.archive.ubuntu.com/ubuntu xenial/main amd64 fakeroot amd64 1.20.2-1ubuntu1 [61.8 kB]
+    azure-arm: Get:31 http://azure.archive.ubuntu.com/ubuntu xenial/main amd64 libalgorithm-diff-perl all 1.19.03-1 [47.6 kB]
+    azure-arm: Get:32 http://azure.archive.ubuntu.com/ubuntu xenial/main amd64 libalgorithm-diff-xs-perl amd64 0.04-4build1 [11.0 kB]
+    azure-arm: Get:33 http://azure.archive.ubuntu.com/ubuntu xenial/main amd64 libalgorithm-merge-perl all 0.08-3 [12.0 kB]
+    azure-arm: Get:34 http://azure.archive.ubuntu.com/ubuntu xenial-updates/main amd64 libexpat1-dev amd64 2.1.0-7ubuntu0.16.04.5 [115 kB]
+    azure-arm: Get:35 http://azure.archive.ubuntu.com/ubuntu xenial/main amd64 libfile-fcntllock-perl amd64 0.22-3 [32.0 kB]
+    azure-arm: Get:36 http://azure.archive.ubuntu.com/ubuntu xenial-updates/main amd64 libpython2.7-dev amd64 2.7.12-1ubuntu0~16.04.9 [27.8 MB]
+    azure-arm: Get:37 https://packages.microsoft.com/repos/azure-cli wheezy/main amd64 azure-cli all 2.0.60-1~wheezy [88.9 MB]
+    azure-arm: Get:38 http://azure.archive.ubuntu.com/ubuntu xenial-updates/main amd64 libpython-dev amd64 2.7.12-1~16.04 [7,840 B]
+    azure-arm: Get:39 http://azure.archive.ubuntu.com/ubuntu xenial-updates/main amd64 zlib1g-dev amd64 1:1.2.8.dfsg-2ubuntu4.3 [167 kB]
+    azure-arm: Get:40 http://azure.archive.ubuntu.com/ubuntu xenial-updates/main amd64 libssl-dev amd64 1.0.2g-1ubuntu4.15 [1,344 kB]
+    azure-arm: Get:41 http://azure.archive.ubuntu.com/ubuntu xenial-updates/main amd64 libssl-doc all 1.0.2g-1ubuntu4.15 [1,077 kB]
+    azure-arm: Get:42 http://azure.archive.ubuntu.com/ubuntu xenial/main amd64 manpages-dev all 4.04-2 [2,048 kB]
+    azure-arm: Get:43 http://azure.archive.ubuntu.com/ubuntu xenial-updates/main amd64 python2.7-dev amd64 2.7.12-1ubuntu0~16.04.9 [276 kB]
+    azure-arm: Get:44 http://azure.archive.ubuntu.com/ubuntu xenial-updates/main amd64 python-dev amd64 2.7.12-1~16.04 [1,186 B]
+    azure-arm: Get:45 http://azure.archive.ubuntu.com/ubuntu xenial/main amd64 libffi-dev amd64 3.2.1-4 [161 kB]
+==> azure-arm: debconf: unable to initialize frontend: Dialog
+==> azure-arm: debconf: (Dialog frontend will not work on a dumb terminal, an emacs shell buffer, or without a controlling terminal.)
+==> azure-arm: debconf: falling back to frontend: Readline
+==> azure-arm: debconf: unable to initialize frontend: Readline
+==> azure-arm: debconf: (This frontend requires a controlling tty.)
+==> azure-arm: debconf: falling back to frontend: Teletype
+==> azure-arm: dpkg-preconfigure: unable to re-open stdin:
+    azure-arm: Fetched 156 MB in 5s (30.3 MB/s)
+    azure-arm: Selecting previously unselected package libmpc3:amd64.
+    azure-arm: (Reading database ... 53917 files and directories currently installed.)
+    azure-arm: Preparing to unpack .../libmpc3_1.0.3-1_amd64.deb ...
+    azure-arm: Unpacking libmpc3:amd64 (1.0.3-1) ...
+    azure-arm: Selecting previously unselected package libc-dev-bin.
+    azure-arm: Preparing to unpack .../libc-dev-bin_2.23-0ubuntu11_amd64.deb ...
+    azure-arm: Unpacking libc-dev-bin (2.23-0ubuntu11) ...
+    azure-arm: Selecting previously unselected package linux-libc-dev:amd64.
+    azure-arm: Preparing to unpack .../linux-libc-dev_4.4.0-176.206_amd64.deb ...
+    azure-arm: Unpacking linux-libc-dev:amd64 (4.4.0-176.206) ...
+    azure-arm: Selecting previously unselected package libc6-dev:amd64.
+    azure-arm: Preparing to unpack .../libc6-dev_2.23-0ubuntu11_amd64.deb ...
+    azure-arm: Unpacking libc6-dev:amd64 (2.23-0ubuntu11) ...
+    azure-arm: Selecting previously unselected package libisl15:amd64.
+    azure-arm: Preparing to unpack .../libisl15_0.16.1-1_amd64.deb ...
+    azure-arm: Unpacking libisl15:amd64 (0.16.1-1) ...
+    azure-arm: Selecting previously unselected package cpp-5.
+    azure-arm: Preparing to unpack .../cpp-5_5.4.0-6ubuntu1~16.04.12_amd64.deb ...
+    azure-arm: Unpacking cpp-5 (5.4.0-6ubuntu1~16.04.12) ...
+    azure-arm: Selecting previously unselected package cpp.
+    azure-arm: Preparing to unpack .../cpp_4%3a5.3.1-1ubuntu1_amd64.deb ...
+    azure-arm: Unpacking cpp (4:5.3.1-1ubuntu1) ...
+    azure-arm: Selecting previously unselected package libcc1-0:amd64.
+    azure-arm: Preparing to unpack .../libcc1-0_5.4.0-6ubuntu1~16.04.12_amd64.deb ...
+    azure-arm: Unpacking libcc1-0:amd64 (5.4.0-6ubuntu1~16.04.12) ...
+    azure-arm: Selecting previously unselected package libgomp1:amd64.
+    azure-arm: Preparing to unpack .../libgomp1_5.4.0-6ubuntu1~16.04.12_amd64.deb ...
+    azure-arm: Unpacking libgomp1:amd64 (5.4.0-6ubuntu1~16.04.12) ...
+    azure-arm: Selecting previously unselected package libitm1:amd64.
+    azure-arm: Preparing to unpack .../libitm1_5.4.0-6ubuntu1~16.04.12_amd64.deb ...
+    azure-arm: Unpacking libitm1:amd64 (5.4.0-6ubuntu1~16.04.12) ...
+    azure-arm: Selecting previously unselected package libatomic1:amd64.
+    azure-arm: Preparing to unpack .../libatomic1_5.4.0-6ubuntu1~16.04.12_amd64.deb ...
+    azure-arm: Unpacking libatomic1:amd64 (5.4.0-6ubuntu1~16.04.12) ...
+    azure-arm: Selecting previously unselected package libasan2:amd64.
+    azure-arm: Preparing to unpack .../libasan2_5.4.0-6ubuntu1~16.04.12_amd64.deb ...
+    azure-arm: Unpacking libasan2:amd64 (5.4.0-6ubuntu1~16.04.12) ...
+    azure-arm: Selecting previously unselected package liblsan0:amd64.
+    azure-arm: Preparing to unpack .../liblsan0_5.4.0-6ubuntu1~16.04.12_amd64.deb ...
+    azure-arm: Unpacking liblsan0:amd64 (5.4.0-6ubuntu1~16.04.12) ...
+    azure-arm: Selecting previously unselected package libtsan0:amd64.
+    azure-arm: Preparing to unpack .../libtsan0_5.4.0-6ubuntu1~16.04.12_amd64.deb ...
+    azure-arm: Unpacking libtsan0:amd64 (5.4.0-6ubuntu1~16.04.12) ...
+    azure-arm: Selecting previously unselected package libubsan0:amd64.
+    azure-arm: Preparing to unpack .../libubsan0_5.4.0-6ubuntu1~16.04.12_amd64.deb ...
+    azure-arm: Unpacking libubsan0:amd64 (5.4.0-6ubuntu1~16.04.12) ...
+    azure-arm: Selecting previously unselected package libcilkrts5:amd64.
+    azure-arm: Preparing to unpack .../libcilkrts5_5.4.0-6ubuntu1~16.04.12_amd64.deb ...
+    azure-arm: Unpacking libcilkrts5:amd64 (5.4.0-6ubuntu1~16.04.12) ...
+    azure-arm: Selecting previously unselected package libmpx0:amd64.
+    azure-arm: Preparing to unpack .../libmpx0_5.4.0-6ubuntu1~16.04.12_amd64.deb ...
+    azure-arm: Unpacking libmpx0:amd64 (5.4.0-6ubuntu1~16.04.12) ...
+    azure-arm: Selecting previously unselected package libquadmath0:amd64.
+    azure-arm: Preparing to unpack .../libquadmath0_5.4.0-6ubuntu1~16.04.12_amd64.deb ...
+    azure-arm: Unpacking libquadmath0:amd64 (5.4.0-6ubuntu1~16.04.12) ...
+    azure-arm: Selecting previously unselected package libgcc-5-dev:amd64.
+    azure-arm: Preparing to unpack .../libgcc-5-dev_5.4.0-6ubuntu1~16.04.12_amd64.deb ...
+    azure-arm: Unpacking libgcc-5-dev:amd64 (5.4.0-6ubuntu1~16.04.12) ...
+    azure-arm: Selecting previously unselected package gcc-5.
+    azure-arm: Preparing to unpack .../gcc-5_5.4.0-6ubuntu1~16.04.12_amd64.deb ...
+    azure-arm: Unpacking gcc-5 (5.4.0-6ubuntu1~16.04.12) ...
+    azure-arm: Selecting previously unselected package gcc.
+    azure-arm: Preparing to unpack .../gcc_4%3a5.3.1-1ubuntu1_amd64.deb ...
+    azure-arm: Unpacking gcc (4:5.3.1-1ubuntu1) ...
+    azure-arm: Selecting previously unselected package libstdc++-5-dev:amd64.
+    azure-arm: Preparing to unpack .../libstdc++-5-dev_5.4.0-6ubuntu1~16.04.12_amd64.deb ...
+    azure-arm: Unpacking libstdc++-5-dev:amd64 (5.4.0-6ubuntu1~16.04.12) ...
+    azure-arm: Selecting previously unselected package g++-5.
+    azure-arm: Preparing to unpack .../g++-5_5.4.0-6ubuntu1~16.04.12_amd64.deb ...
+    azure-arm: Unpacking g++-5 (5.4.0-6ubuntu1~16.04.12) ...
+    azure-arm: Selecting previously unselected package g++.
+    azure-arm: Preparing to unpack .../g++_4%3a5.3.1-1ubuntu1_amd64.deb ...
+    azure-arm: Unpacking g++ (4:5.3.1-1ubuntu1) ...
+    azure-arm: Selecting previously unselected package make.
+    azure-arm: Preparing to unpack .../archives/make_4.1-6_amd64.deb ...
+    azure-arm: Unpacking make (4.1-6) ...
+    azure-arm: Selecting previously unselected package libdpkg-perl.
+    azure-arm: Preparing to unpack .../libdpkg-perl_1.18.4ubuntu1.6_all.deb ...
+    azure-arm: Unpacking libdpkg-perl (1.18.4ubuntu1.6) ...
+    azure-arm: Selecting previously unselected package dpkg-dev.
+    azure-arm: Preparing to unpack .../dpkg-dev_1.18.4ubuntu1.6_all.deb ...
+    azure-arm: Unpacking dpkg-dev (1.18.4ubuntu1.6) ...
+    azure-arm: Selecting previously unselected package build-essential.
+    azure-arm: Preparing to unpack .../build-essential_12.1ubuntu2_amd64.deb ...
+    azure-arm: Unpacking build-essential (12.1ubuntu2) ...
+    azure-arm: Selecting previously unselected package libfakeroot:amd64.
+    azure-arm: Preparing to unpack .../libfakeroot_1.20.2-1ubuntu1_amd64.deb ...
+    azure-arm: Unpacking libfakeroot:amd64 (1.20.2-1ubuntu1) ...
+    azure-arm: Selecting previously unselected package fakeroot.
+    azure-arm: Preparing to unpack .../fakeroot_1.20.2-1ubuntu1_amd64.deb ...
+    azure-arm: Unpacking fakeroot (1.20.2-1ubuntu1) ...
+    azure-arm: Selecting previously unselected package libalgorithm-diff-perl.
+    azure-arm: Preparing to unpack .../libalgorithm-diff-perl_1.19.03-1_all.deb ...
+    azure-arm: Unpacking libalgorithm-diff-perl (1.19.03-1) ...
+    azure-arm: Selecting previously unselected package libalgorithm-diff-xs-perl.
+    azure-arm: Preparing to unpack .../libalgorithm-diff-xs-perl_0.04-4build1_amd64.deb ...
+    azure-arm: Unpacking libalgorithm-diff-xs-perl (0.04-4build1) ...
+    azure-arm: Selecting previously unselected package libalgorithm-merge-perl.
+    azure-arm: Preparing to unpack .../libalgorithm-merge-perl_0.08-3_all.deb ...
+    azure-arm: Unpacking libalgorithm-merge-perl (0.08-3) ...
+    azure-arm: Selecting previously unselected package libexpat1-dev:amd64.
+    azure-arm: Preparing to unpack .../libexpat1-dev_2.1.0-7ubuntu0.16.04.5_amd64.deb ...
+    azure-arm: Unpacking libexpat1-dev:amd64 (2.1.0-7ubuntu0.16.04.5) ...
+    azure-arm: Selecting previously unselected package libfile-fcntllock-perl.
+    azure-arm: Preparing to unpack .../libfile-fcntllock-perl_0.22-3_amd64.deb ...
+    azure-arm: Unpacking libfile-fcntllock-perl (0.22-3) ...
+    azure-arm: Selecting previously unselected package libpython2.7-dev:amd64.
+    azure-arm: Preparing to unpack .../libpython2.7-dev_2.7.12-1ubuntu0~16.04.9_amd64.deb ...
+    azure-arm: Unpacking libpython2.7-dev:amd64 (2.7.12-1ubuntu0~16.04.9) ...
+    azure-arm: Selecting previously unselected package libpython-dev:amd64.
+    azure-arm: Preparing to unpack .../libpython-dev_2.7.12-1~16.04_amd64.deb ...
+    azure-arm: Unpacking libpython-dev:amd64 (2.7.12-1~16.04) ...
+    azure-arm: Selecting previously unselected package zlib1g-dev:amd64.
+    azure-arm: Preparing to unpack .../zlib1g-dev_1%3a1.2.8.dfsg-2ubuntu4.3_amd64.deb ...
+    azure-arm: Unpacking zlib1g-dev:amd64 (1:1.2.8.dfsg-2ubuntu4.3) ...
+    azure-arm: Selecting previously unselected package libssl-dev:amd64.
+    azure-arm: Preparing to unpack .../libssl-dev_1.0.2g-1ubuntu4.15_amd64.deb ...
+    azure-arm: Unpacking libssl-dev:amd64 (1.0.2g-1ubuntu4.15) ...
+    azure-arm: Selecting previously unselected package libssl-doc.
+    azure-arm: Preparing to unpack .../libssl-doc_1.0.2g-1ubuntu4.15_all.deb ...
+    azure-arm: Unpacking libssl-doc (1.0.2g-1ubuntu4.15) ...
+    azure-arm: Selecting previously unselected package manpages-dev.
+    azure-arm: Preparing to unpack .../manpages-dev_4.04-2_all.deb ...
+    azure-arm: Unpacking manpages-dev (4.04-2) ...
+    azure-arm: Selecting previously unselected package python2.7-dev.
+    azure-arm: Preparing to unpack .../python2.7-dev_2.7.12-1ubuntu0~16.04.9_amd64.deb ...
+    azure-arm: Unpacking python2.7-dev (2.7.12-1ubuntu0~16.04.9) ...
+    azure-arm: Selecting previously unselected package python-dev.
+    azure-arm: Preparing to unpack .../python-dev_2.7.12-1~16.04_amd64.deb ...
+    azure-arm: Unpacking python-dev (2.7.12-1~16.04) ...
+    azure-arm: Selecting previously unselected package azure-cli.
+    azure-arm: Preparing to unpack .../azure-cli_2.0.60-1~wheezy_all.deb ...
+    azure-arm: Unpacking azure-cli (2.0.60-1~wheezy) ...
+    azure-arm: Selecting previously unselected package libffi-dev:amd64.
+    azure-arm: Preparing to unpack .../libffi-dev_3.2.1-4_amd64.deb ...
+    azure-arm: Unpacking libffi-dev:amd64 (3.2.1-4) ...
+    azure-arm: Processing triggers for man-db (2.7.5-1) ...
+    azure-arm: Processing triggers for libc-bin (2.23-0ubuntu11) ...
+    azure-arm: Processing triggers for install-info (6.1.0.dfsg.1-5) ...
+    azure-arm: Setting up libmpc3:amd64 (1.0.3-1) ...
+    azure-arm: Setting up libc-dev-bin (2.23-0ubuntu11) ...
+    azure-arm: Setting up linux-libc-dev:amd64 (4.4.0-176.206) ...
+    azure-arm: Setting up libc6-dev:amd64 (2.23-0ubuntu11) ...
+    azure-arm: Setting up libisl15:amd64 (0.16.1-1) ...
+    azure-arm: Setting up cpp-5 (5.4.0-6ubuntu1~16.04.12) ...
+    azure-arm: Setting up cpp (4:5.3.1-1ubuntu1) ...
+    azure-arm: Setting up libcc1-0:amd64 (5.4.0-6ubuntu1~16.04.12) ...
+    azure-arm: Setting up libgomp1:amd64 (5.4.0-6ubuntu1~16.04.12) ...
+    azure-arm: Setting up libitm1:amd64 (5.4.0-6ubuntu1~16.04.12) ...
+    azure-arm: Setting up libatomic1:amd64 (5.4.0-6ubuntu1~16.04.12) ...
+    azure-arm: Setting up libasan2:amd64 (5.4.0-6ubuntu1~16.04.12) ...
+    azure-arm: Setting up liblsan0:amd64 (5.4.0-6ubuntu1~16.04.12) ...
+    azure-arm: Setting up libtsan0:amd64 (5.4.0-6ubuntu1~16.04.12) ...
+    azure-arm: Setting up libubsan0:amd64 (5.4.0-6ubuntu1~16.04.12) ...
+    azure-arm: Setting up libcilkrts5:amd64 (5.4.0-6ubuntu1~16.04.12) ...
+    azure-arm: Setting up libmpx0:amd64 (5.4.0-6ubuntu1~16.04.12) ...
+    azure-arm: Setting up libquadmath0:amd64 (5.4.0-6ubuntu1~16.04.12) ...
+    azure-arm: Setting up libgcc-5-dev:amd64 (5.4.0-6ubuntu1~16.04.12) ...
+    azure-arm: Setting up gcc-5 (5.4.0-6ubuntu1~16.04.12) ...
+    azure-arm: Setting up gcc (4:5.3.1-1ubuntu1) ...
+    azure-arm: Setting up libstdc++-5-dev:amd64 (5.4.0-6ubuntu1~16.04.12) ...
+    azure-arm: Setting up g++-5 (5.4.0-6ubuntu1~16.04.12) ...
+    azure-arm: Setting up g++ (4:5.3.1-1ubuntu1) ...
+    azure-arm: update-alternatives: using /usr/bin/g++ to provide /usr/bin/c++ (c++) in auto mode
+    azure-arm: Setting up make (4.1-6) ...
+    azure-arm: Setting up libdpkg-perl (1.18.4ubuntu1.6) ...
+    azure-arm: Setting up dpkg-dev (1.18.4ubuntu1.6) ...
+    azure-arm: Setting up build-essential (12.1ubuntu2) ...
+    azure-arm: Setting up libfakeroot:amd64 (1.20.2-1ubuntu1) ...
+    azure-arm: Setting up fakeroot (1.20.2-1ubuntu1) ...
+    azure-arm: update-alternatives: using /usr/bin/fakeroot-sysv to provide /usr/bin/fakeroot (fakeroot) in auto mode
+    azure-arm: Setting up libalgorithm-diff-perl (1.19.03-1) ...
+    azure-arm: Setting up libalgorithm-diff-xs-perl (0.04-4build1) ...
+    azure-arm: Setting up libalgorithm-merge-perl (0.08-3) ...
+    azure-arm: Setting up libexpat1-dev:amd64 (2.1.0-7ubuntu0.16.04.5) ...
+    azure-arm: Setting up libfile-fcntllock-perl (0.22-3) ...
+    azure-arm: Setting up libpython2.7-dev:amd64 (2.7.12-1ubuntu0~16.04.9) ...
+    azure-arm: Setting up libpython-dev:amd64 (2.7.12-1~16.04) ...
+    azure-arm: Setting up zlib1g-dev:amd64 (1:1.2.8.dfsg-2ubuntu4.3) ...
+    azure-arm: Setting up libssl-dev:amd64 (1.0.2g-1ubuntu4.15) ...
+    azure-arm: Setting up libssl-doc (1.0.2g-1ubuntu4.15) ...
+    azure-arm: Setting up manpages-dev (4.04-2) ...
+    azure-arm: Setting up python2.7-dev (2.7.12-1ubuntu0~16.04.9) ...
+    azure-arm: Setting up python-dev (2.7.12-1~16.04) ...
+    azure-arm: Setting up azure-cli (2.0.60-1~wheezy) ...
+    azure-arm: Setting up libffi-dev:amd64 (3.2.1-4) ...
+    azure-arm: Processing triggers for libc-bin (2.23-0ubuntu11) ...
+    azure-arm: Reading package lists...
+    azure-arm: Building dependency tree...
+    azure-arm: Reading state information...
+    azure-arm: Calculating upgrade...
+    azure-arm: The following package was automatically installed and is no longer required:
+    azure-arm:   grub-pc-bin
+    azure-arm: Use 'sudo apt autoremove' to remove it.
+    azure-arm: The following packages have been kept back:
+    azure-arm:   linux-azure linux-cloud-tools-azure linux-headers-azure linux-image-azure
+    azure-arm:   linux-tools-azure
+    azure-arm: The following packages will be upgraded:
+    azure-arm:   apport libglib2.0-0 libglib2.0-data libicu55 linux-base python3-apport
+    azure-arm:   python3-problem-report sosreport vim vim-common vim-runtime vim-tiny
+    azure-arm: 12 upgraded, 0 newly installed, 0 to remove and 5 not upgraded.
+    azure-arm: Need to get 16.1 MB of archives.
+    azure-arm: After this operation, 219 kB of additional disk space will be used.
+    azure-arm: Get:1 http://azure.archive.ubuntu.com/ubuntu xenial-updates/main amd64 libglib2.0-0 amd64 2.48.2-0ubuntu4.6 [1,120 kB]
+    azure-arm: Get:2 http://azure.archive.ubuntu.com/ubuntu xenial-updates/main amd64 linux-base all 4.5ubuntu1.1~16.04.1 [18.1 kB]
+    azure-arm: Get:3 http://azure.archive.ubuntu.com/ubuntu xenial-updates/main amd64 vim amd64 2:7.4.1689-3ubuntu1.4 [1,036 kB]
+    azure-arm: Get:4 http://azure.archive.ubuntu.com/ubuntu xenial-updates/main amd64 vim-tiny amd64 2:7.4.1689-3ubuntu1.4 [446 kB]
+    azure-arm: Get:5 http://azure.archive.ubuntu.com/ubuntu xenial-updates/main amd64 vim-runtime all 2:7.4.1689-3ubuntu1.4 [5,169 kB]
+    azure-arm: Get:6 http://azure.archive.ubuntu.com/ubuntu xenial-updates/main amd64 vim-common amd64 2:7.4.1689-3ubuntu1.4 [103 kB]
+    azure-arm: Get:7 http://azure.archive.ubuntu.com/ubuntu xenial-updates/main amd64 libglib2.0-data all 2.48.2-0ubuntu4.6 [131 kB]
+    azure-arm: Get:8 http://azure.archive.ubuntu.com/ubuntu xenial-updates/main amd64 libicu55 amd64 55.1-7ubuntu0.5 [7,650 kB]
+    azure-arm: Get:9 http://azure.archive.ubuntu.com/ubuntu xenial-updates/main amd64 python3-problem-report all 2.20.1-0ubuntu2.22 [10.5 kB]
+    azure-arm: Get:10 http://azure.archive.ubuntu.com/ubuntu xenial-updates/main amd64 python3-apport all 2.20.1-0ubuntu2.22 [80.0 kB]
+    azure-arm: Get:11 http://azure.archive.ubuntu.com/ubuntu xenial-updates/main amd64 apport all 2.20.1-0ubuntu2.22 [121 kB]
+    azure-arm: Get:12 http://azure.archive.ubuntu.com/ubuntu xenial-updates/main amd64 sosreport amd64 3.9-1ubuntu0.16.04.1 [168 kB]
+    azure-arm: Preconfiguring packages ...
+    azure-arm: Fetched 16.1 MB in 0s (79.8 MB/s)
+    azure-arm: (Reading database ... 118448 files and directories currently installed.)
+    azure-arm: Preparing to unpack .../libglib2.0-0_2.48.2-0ubuntu4.6_amd64.deb ...
+    azure-arm: Unpacking libglib2.0-0:amd64 (2.48.2-0ubuntu4.6) over (2.48.2-0ubuntu4.4) ...
+    azure-arm: Preparing to unpack .../linux-base_4.5ubuntu1.1~16.04.1_all.deb ...
+    azure-arm: Unpacking linux-base (4.5ubuntu1.1~16.04.1) over (4.5ubuntu1~16.04.1) ...
+    azure-arm: Preparing to unpack .../vim_2%3a7.4.1689-3ubuntu1.4_amd64.deb ...
+    azure-arm: Unpacking vim (2:7.4.1689-3ubuntu1.4) over (2:7.4.1689-3ubuntu1.3) ...
+    azure-arm: Preparing to unpack .../vim-tiny_2%3a7.4.1689-3ubuntu1.4_amd64.deb ...
+    azure-arm: Unpacking vim-tiny (2:7.4.1689-3ubuntu1.4) over (2:7.4.1689-3ubuntu1.3) ...
+    azure-arm: Preparing to unpack .../vim-runtime_2%3a7.4.1689-3ubuntu1.4_all.deb ...
+    azure-arm: Unpacking vim-runtime (2:7.4.1689-3ubuntu1.4) over (2:7.4.1689-3ubuntu1.3) ...
+    azure-arm: Preparing to unpack .../vim-common_2%3a7.4.1689-3ubuntu1.4_amd64.deb ...
+    azure-arm: Unpacking vim-common (2:7.4.1689-3ubuntu1.4) over (2:7.4.1689-3ubuntu1.3) ...
+    azure-arm: Preparing to unpack .../libglib2.0-data_2.48.2-0ubuntu4.6_all.deb ...
+    azure-arm: Unpacking libglib2.0-data (2.48.2-0ubuntu4.6) over (2.48.2-0ubuntu4.4) ...
+    azure-arm: Preparing to unpack .../libicu55_55.1-7ubuntu0.5_amd64.deb ...
+    azure-arm: Unpacking libicu55:amd64 (55.1-7ubuntu0.5) over (55.1-7ubuntu0.4) ...
+    azure-arm: Preparing to unpack .../python3-problem-report_2.20.1-0ubuntu2.22_all.deb ...
+    azure-arm: Unpacking python3-problem-report (2.20.1-0ubuntu2.22) over (2.20.1-0ubuntu2.21) ...
+    azure-arm: Preparing to unpack .../python3-apport_2.20.1-0ubuntu2.22_all.deb ...
+    azure-arm: Unpacking python3-apport (2.20.1-0ubuntu2.22) over (2.20.1-0ubuntu2.21) ...
+    azure-arm: Preparing to unpack .../apport_2.20.1-0ubuntu2.22_all.deb ...
+    azure-arm: Unpacking apport (2.20.1-0ubuntu2.22) over (2.20.1-0ubuntu2.21) ...
+    azure-arm: Preparing to unpack .../sosreport_3.9-1ubuntu0.16.04.1_amd64.deb ...
+    azure-arm: Unpacking sosreport (3.9-1ubuntu0.16.04.1) over (3.6-1ubuntu0.16.04.4) ...
+    azure-arm: Processing triggers for libc-bin (2.23-0ubuntu11) ...
+    azure-arm: Processing triggers for man-db (2.7.5-1) ...
+    azure-arm: Processing triggers for mime-support (3.59ubuntu1) ...
+    azure-arm: Processing triggers for ureadahead (0.100.0-19.1) ...
+    azure-arm: Processing triggers for systemd (229-4ubuntu21.27) ...
+    azure-arm: Setting up libglib2.0-0:amd64 (2.48.2-0ubuntu4.6) ...
+    azure-arm: No schema files found: doing nothing.
+    azure-arm: Setting up linux-base (4.5ubuntu1.1~16.04.1) ...
+    azure-arm: Setting up vim-common (2:7.4.1689-3ubuntu1.4) ...
+    azure-arm: Setting up vim-runtime (2:7.4.1689-3ubuntu1.4) ...
+    azure-arm: Setting up vim (2:7.4.1689-3ubuntu1.4) ...
+    azure-arm: Setting up vim-tiny (2:7.4.1689-3ubuntu1.4) ...
+    azure-arm: Setting up libglib2.0-data (2.48.2-0ubuntu4.6) ...
+    azure-arm: Setting up libicu55:amd64 (55.1-7ubuntu0.5) ...
+    azure-arm: Setting up python3-problem-report (2.20.1-0ubuntu2.22) ...
+    azure-arm: Setting up python3-apport (2.20.1-0ubuntu2.22) ...
+    azure-arm: Setting up apport (2.20.1-0ubuntu2.22) ...
+    azure-arm: Installing new version of config file /etc/init.d/apport ...
+    azure-arm: Setting up sosreport (3.9-1ubuntu0.16.04.1) ...
+    azure-arm: Installing new version of config file /etc/sos.conf ...
+    azure-arm: Processing triggers for libc-bin (2.23-0ubuntu11) ...
+    azure-arm: Processing triggers for ureadahead (0.100.0-19.1) ...
+    azure-arm: Processing triggers for systemd (229-4ubuntu21.27) ...
+==> azure-arm: 2020-03-25 04:15:00 [INFO] [install-consul] Starting Consul install
+==> azure-arm: 2020-03-25 04:15:00 [INFO] [install-consul] Installing dependencies
+    azure-arm: Hit:1 http://azure.archive.ubuntu.com/ubuntu xenial InRelease
+    azure-arm: Hit:2 http://azure.archive.ubuntu.com/ubuntu xenial-updates InRelease
+    azure-arm: Hit:3 http://azure.archive.ubuntu.com/ubuntu xenial-backports InRelease
+    azure-arm: Hit:4 https://packages.microsoft.com/repos/azure-cli wheezy InRelease
+    azure-arm: Hit:5 http://security.ubuntu.com/ubuntu xenial-security InRelease
+    azure-arm: Reading package lists...
+    azure-arm: Reading package lists...
+    azure-arm: Building dependency tree...
+    azure-arm: Reading state information...
+    azure-arm: curl is already the newest version (7.47.0-1ubuntu2.14).
+    azure-arm: azure-cli is already the newest version (2.0.60-1~wheezy).
+    azure-arm: The following package was automatically installed and is no longer required:
+    azure-arm:   grub-pc-bin
+    azure-arm: Use 'sudo apt autoremove' to remove it.
+    azure-arm: The following additional packages will be installed:
+    azure-arm:   libonig2
+    azure-arm: Suggested packages:
+    azure-arm:   zip
+    azure-arm: The following NEW packages will be installed:
+    azure-arm:   jq libonig2 unzip
+    azure-arm: 0 upgraded, 3 newly installed, 0 to remove and 5 not upgraded.
+    azure-arm: Need to get 389 kB of archives.
+    azure-arm: After this operation, 1,327 kB of additional disk space will be used.
+    azure-arm: Get:1 http://azure.archive.ubuntu.com/ubuntu xenial-updates/universe amd64 libonig2 amd64 5.9.6-1ubuntu0.1 [86.7 kB]
+    azure-arm: Get:2 http://azure.archive.ubuntu.com/ubuntu xenial-updates/universe amd64 jq amd64 1.5+dfsg-1ubuntu0.1 [144 kB]
+    azure-arm: Get:3 http://azure.archive.ubuntu.com/ubuntu xenial/main amd64 unzip amd64 6.0-20ubuntu1 [158 kB]
+==> azure-arm: debconf: unable to initialize frontend: Dialog
+==> azure-arm: debconf: (Dialog frontend will not work on a dumb terminal, an emacs shell buffer, or without a controlling terminal.)
+==> azure-arm: debconf: falling back to frontend: Readline
+==> azure-arm: debconf: unable to initialize frontend: Readline
+==> azure-arm: debconf: (This frontend requires a controlling tty.)
+==> azure-arm: debconf: falling back to frontend: Teletype
+==> azure-arm: dpkg-preconfigure: unable to re-open stdin:
+    azure-arm: Fetched 389 kB in 0s (17.2 MB/s)
+    azure-arm: Selecting previously unselected package libonig2:amd64.
+    azure-arm: (Reading database ... 118476 files and directories currently installed.)
+    azure-arm: Preparing to unpack .../libonig2_5.9.6-1ubuntu0.1_amd64.deb ...
+    azure-arm: Unpacking libonig2:amd64 (5.9.6-1ubuntu0.1) ...
+    azure-arm: Selecting previously unselected package jq.
+    azure-arm: Preparing to unpack .../jq_1.5+dfsg-1ubuntu0.1_amd64.deb ...
+    azure-arm: Unpacking jq (1.5+dfsg-1ubuntu0.1) ...
+    azure-arm: Selecting previously unselected package unzip.
+    azure-arm: Preparing to unpack .../unzip_6.0-20ubuntu1_amd64.deb ...
+    azure-arm: Unpacking unzip (6.0-20ubuntu1) ...
+    azure-arm: Processing triggers for libc-bin (2.23-0ubuntu11) ...
+    azure-arm: Processing triggers for man-db (2.7.5-1) ...
+    azure-arm: Processing triggers for mime-support (3.59ubuntu1) ...
+    azure-arm: Setting up libonig2:amd64 (5.9.6-1ubuntu0.1) ...
+    azure-arm: Setting up jq (1.5+dfsg-1ubuntu0.1) ...
+    azure-arm: Setting up unzip (6.0-20ubuntu1) ...
+    azure-arm: Processing triggers for libc-bin (2.23-0ubuntu11) ...
+    azure-arm: Reading package lists...
+    azure-arm: Building dependency tree...
+    azure-arm: Reading state information...
+    azure-arm: The following package was automatically installed and is no longer required:
+    azure-arm:   grub-pc-bin
+    azure-arm: Use 'sudo apt autoremove' to remove it.
+    azure-arm: The following additional packages will be installed:
+    azure-arm:   python-meld3 python-pkg-resources
+    azure-arm: Suggested packages:
+    azure-arm:   python-setuptools supervisor-doc
+    azure-arm: The following NEW packages will be installed:
+    azure-arm:   python-meld3 python-pkg-resources supervisor
+    azure-arm: 0 upgraded, 3 newly installed, 0 to remove and 5 not upgraded.
+    azure-arm: Need to get 392 kB of archives.
+    azure-arm: After this operation, 2,004 kB of additional disk space will be used.
+    azure-arm: Get:1 http://azure.archive.ubuntu.com/ubuntu xenial/main amd64 python-pkg-resources all 20.7.0-1 [108 kB]
+    azure-arm: Get:2 http://azure.archive.ubuntu.com/ubuntu xenial/universe amd64 python-meld3 all 1.0.2-2 [30.9 kB]
+    azure-arm: Get:3 http://azure.archive.ubuntu.com/ubuntu xenial-updates/universe amd64 supervisor all 3.2.0-2ubuntu0.2 [253 kB]
+==> azure-arm: debconf: unable to initialize frontend: Dialog
+==> azure-arm: debconf: (Dialog frontend will not work on a dumb terminal, an emacs shell buffer, or without a controlling terminal.)
+==> azure-arm: debconf: falling back to frontend: Readline
+==> azure-arm: debconf: unable to initialize frontend: Readline
+==> azure-arm: debconf: (This frontend requires a controlling tty.)
+==> azure-arm: debconf: falling back to frontend: Teletype
+==> azure-arm: dpkg-preconfigure: unable to re-open stdin:
+    azure-arm: Fetched 392 kB in 1s (333 kB/s)
+    azure-arm: Selecting previously unselected package python-pkg-resources.
+    azure-arm: (Reading database ... 118506 files and directories currently installed.)
+    azure-arm: Preparing to unpack .../python-pkg-resources_20.7.0-1_all.deb ...
+    azure-arm: Unpacking python-pkg-resources (20.7.0-1) ...
+    azure-arm: Selecting previously unselected package python-meld3.
+    azure-arm: Preparing to unpack .../python-meld3_1.0.2-2_all.deb ...
+    azure-arm: Unpacking python-meld3 (1.0.2-2) ...
+    azure-arm: Selecting previously unselected package supervisor.
+    azure-arm: Preparing to unpack .../supervisor_3.2.0-2ubuntu0.2_all.deb ...
+    azure-arm: Unpacking supervisor (3.2.0-2ubuntu0.2) ...
+    azure-arm: Processing triggers for man-db (2.7.5-1) ...
+    azure-arm: Processing triggers for ureadahead (0.100.0-19.1) ...
+    azure-arm: Processing triggers for systemd (229-4ubuntu21.27) ...
+    azure-arm: Setting up python-pkg-resources (20.7.0-1) ...
+    azure-arm: Setting up python-meld3 (1.0.2-2) ...
+    azure-arm: Setting up supervisor (3.2.0-2ubuntu0.2) ...
+    azure-arm: Processing triggers for ureadahead (0.100.0-19.1) ...
+    azure-arm: Processing triggers for systemd (229-4ubuntu21.27) ...
+==> azure-arm: Synchronizing state of supervisor.service with SysV init with /lib/systemd/systemd-sysv-install...
+==> azure-arm: Executing /lib/systemd/systemd-sysv-install enable supervisor
+==> azure-arm: 2020-03-25 04:15:11 [INFO] [install-consul] Creating user named consul
+==> azure-arm: sent invalidate(passwd) request, exiting
+==> azure-arm: sent invalidate(group) request, exiting
+==> azure-arm: sent invalidate(passwd) request, exiting
+==> azure-arm: sent invalidate(group) request, exiting
+==> azure-arm: 2020-03-25 04:15:12 [INFO] [install-consul] Creating install dirs for Consul at /opt/consul
+==> azure-arm: 2020-03-25 04:15:12 [INFO] [install-consul] Changing ownership of /opt/consul to consul
+==> azure-arm: 2020-03-25 04:15:12 [INFO] [install-consul] Downloading Consul 1.7.2 from https://releases.hashicorp.com/consul/1.7.2/consul_1.7.2_linux_amd64.zip to /tmp/consul_1.7.2_linux_amd64.zip
+==> azure-arm:   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+==> azure-arm:                                  Dload  Upload   Total   Spent    Left  Speed
+==> azure-arm: 100 37.8M  100 37.8M    0     0   121M      0 --:--:-- --:--:-- --:--:--  121M
+    azure-arm: Archive:  /tmp/consul_1.7.2_linux_amd64.zip
+    azure-arm:   inflating: /tmp/consul
+==> azure-arm: 2020-03-25 04:15:13 [INFO] [install-consul] Moving Consul binary to /opt/consul/bin/consul
+==> azure-arm: 2020-03-25 04:15:13 [INFO] [install-consul] Adding symlink to /opt/consul/bin/consul in /usr/local/bin/consul
+==> azure-arm: 2020-03-25 04:15:13 [INFO] [install-consul] Copying Consul run script to /opt/consul/bin/run-consul
+==> azure-arm: 2020-03-25 04:15:13 [INFO] [install-consul] Consul install complete!
+==> azure-arm: 2020-03-25 04:15:13 [INFO] [install-dnsmasq] Starting Dnsmasq install
+==> azure-arm: 2020-03-25 04:15:13 [INFO] [install-dnsmasq] Installing Dnsmasq
+    azure-arm: Hit:1 http://azure.archive.ubuntu.com/ubuntu xenial InRelease
+    azure-arm: Hit:2 http://azure.archive.ubuntu.com/ubuntu xenial-updates InRelease
+    azure-arm: Hit:3 http://azure.archive.ubuntu.com/ubuntu xenial-backports InRelease
+    azure-arm: Hit:4 https://packages.microsoft.com/repos/azure-cli wheezy InRelease
+    azure-arm: Hit:5 http://security.ubuntu.com/ubuntu xenial-security InRelease
+    azure-arm: Reading package lists...
+    azure-arm: Reading package lists...
+    azure-arm: Building dependency tree...
+    azure-arm: Reading state information...
+    azure-arm: The following package was automatically installed and is no longer required:
+    azure-arm:   grub-pc-bin
+    azure-arm: Use 'sudo apt autoremove' to remove it.
+    azure-arm: The following NEW packages will be installed:
+    azure-arm:   dnsmasq
+    azure-arm: 0 upgraded, 1 newly installed, 0 to remove and 5 not upgraded.
+    azure-arm: Need to get 16.0 kB of archives.
+    azure-arm: After this operation, 71.7 kB of additional disk space will be used.
+    azure-arm: Get:1 http://azure.archive.ubuntu.com/ubuntu xenial-updates/universe amd64 dnsmasq all 2.75-1ubuntu0.16.04.5 [16.0 kB]
+==> azure-arm: debconf: unable to initialize frontend: Dialog
+==> azure-arm: debconf: (Dialog frontend will not work on a dumb terminal, an emacs shell buffer, or without a controlling terminal.)
+==> azure-arm: debconf: falling back to frontend: Readline
+==> azure-arm: debconf: unable to initialize frontend: Readline
+==> azure-arm: debconf: (This frontend requires a controlling tty.)
+==> azure-arm: debconf: falling back to frontend: Teletype
+==> azure-arm: dpkg-preconfigure: unable to re-open stdin:
+    azure-arm: Fetched 16.0 kB in 0s (1,334 kB/s)
+    azure-arm: Selecting previously unselected package dnsmasq.
+    azure-arm: (Reading database ... 118664 files and directories currently installed.)
+    azure-arm: Preparing to unpack .../dnsmasq_2.75-1ubuntu0.16.04.5_all.deb ...
+    azure-arm: Unpacking dnsmasq (2.75-1ubuntu0.16.04.5) ...
+    azure-arm: Processing triggers for ureadahead (0.100.0-19.1) ...
+    azure-arm: Processing triggers for systemd (229-4ubuntu21.27) ...
+    azure-arm: Setting up dnsmasq (2.75-1ubuntu0.16.04.5) ...
+    azure-arm: Processing triggers for ureadahead (0.100.0-19.1) ...
+    azure-arm: Processing triggers for systemd (229-4ubuntu21.27) ...
+==> azure-arm: 2020-03-25 04:15:18 [INFO] [install-dnsmasq] Configuring Dnsmasq to forward lookups of the 'consul' domain to 127.0.0.1:8600 in /etc/dnsmasq.d/10-consul
+    azure-arm: # Enable forward lookup of the 'consul' domain:
+    azure-arm: server=/consul/127.0.0.1#8600
+==> azure-arm: 2020-03-25 04:15:18 [INFO] [install-dnsmasq] Dnsmasq install complete!
+    azure-arm:
+    azure-arm: listen-address=127.0.0.1
+    azure-arm: bind-interfaces
+    azure-arm: WARNING! The waagent service will be stopped.
+    azure-arm: WARNING! Cached DHCP leases will be deleted.
+    azure-arm: WARNING! root password will be disabled. You will not be able to login as root.
+    azure-arm: WARNING! /etc/resolvconf/resolv.conf.d/tail and /etc/resolvconf/resolv.conf.d/original will be deleted.
+    azure-arm: WARNING! packer account and entire home directory will be deleted.
+==> azure-arm: Querying the machine's properties ...
+==> azure-arm:  -> ResourceGroupName : 'packer-Resource-Group-fmtsv4uco2'
+==> azure-arm:  -> ComputeName       : 'pkrvmfmtsv4uco2'
+==> azure-arm:  -> Managed OS Disk   : '/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/resourceGroups/PACKER-RESOURCE-GROUP-FMTSV4UCO2/providers/Microsoft.Compute/disks/pkrosfmtsv4uco2'
+==> azure-arm: Querying the machine's additional disks properties ...
+==> azure-arm:  -> ResourceGroupName : 'packer-Resource-Group-fmtsv4uco2'
+==> azure-arm:  -> ComputeName       : 'pkrvmfmtsv4uco2'
+==> azure-arm: Powering off machine ...
+==> azure-arm:  -> ResourceGroupName : 'packer-Resource-Group-fmtsv4uco2'
+==> azure-arm:  -> ComputeName       : 'pkrvmfmtsv4uco2'
+==> azure-arm: Capturing image ...
+==> azure-arm:  -> Compute ResourceGroupName : 'packer-Resource-Group-fmtsv4uco2'
+==> azure-arm:  -> Compute Name              : 'pkrvmfmtsv4uco2'
+==> azure-arm:  -> Compute Location          : 'japaneast'
+==> azure-arm:  -> Image ResourceGroupName   : 'consul'
+==> azure-arm:  -> Image Name                : 'consul-ubuntu-2020-03-25-040954'
+==> azure-arm:  -> Image Location            : 'japaneast'
+==> azure-arm: Deleting resource group ...
+==> azure-arm:  -> ResourceGroupName : 'packer-Resource-Group-fmtsv4uco2'
+==> azure-arm: 
+==> azure-arm: The resource group was created by Packer, deleting ...
+==> azure-arm: Deleting the temporary OS disk ...
+==> azure-arm:  -> OS Disk : skipping, managed disk was used...
+==> azure-arm: Deleting the temporary Additional disk ...
+==> azure-arm:  -> Additional Disk : skipping, managed disk was used...
+==> azure-arm: Removing the created Deployment object: 'pkrdpfmtsv4uco2'
+==> azure-arm: ERROR: -> ResourceGroupNotFound : Resource group 'packer-Resource-Group-fmtsv4uco2' could not be found.
+==> azure-arm:
+Build 'azure-arm' finished.
+
+==> Builds finished. The artifacts of successful builds are:
+--> azure-arm: Azure.ResourceManagement.VMImage:
+
+OSType: Linux
+ManagedImageResourceGroupName: consul
+ManagedImageName: consul-ubuntu-2020-03-25-040954
+ManagedImageId: /subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/resourceGroups/consul/providers/Microsoft.Compute/images/consul-ubuntu-2020-03-25-040954
+ManagedImageLocation: japaneast
+
+
+
+[r-user@test-vm ~]$ az image show --resource-group consul --name consul-ubuntu-2020-03-23-034216
+{
+  "hyperVgeneration": "V1",
+  "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/resourceGroups/consul/providers/Microsoft.Compute/images/consul-ubuntu-2020-03-23-034216",    
+  "location": "japaneast",
+  "name": "consul-ubuntu-2020-03-23-034216",
+  "provisioningState": "Succeeded",
+  "resourceGroup": "consul",
+  "sourceVirtualMachine": {
+    "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/resourceGroups/packer-Resource-Group-7unjzqbx3r/providers/Microsoft.Compute/virtualMachines/pkrvm7unjzqbx3r",
+    "resourceGroup": "packer-Resource-Group-7unjzqbx3r"
+  },
+  "storageProfile": {
+    "dataDisks": [],
+    "osDisk": {
+      "blobUri": null,
+      "caching": "ReadWrite",
+      "diskEncryptionSet": null,
+      "diskSizeGb": 30,
+      "managedDisk": {
+        "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/resourceGroups/PACKER-RESOURCE-GROUP-7UNJZQBX3R/providers/Microsoft.Compute/disks/pkros7unjzqbx3r",
+        "resourceGroup": "PACKER-RESOURCE-GROUP-7UNJZQBX3R"
+      },
+      "osState": "Generalized",
+      "osType": "Linux",
+      "snapshot": null,
+      "storageAccountType": "Standard_LRS"
+    },
+    "zoneResilient": false
+  },
+  "tags": null,
+  "type": "Microsoft.Compute/images"
+}
+
+
+缺省的Standard_DS1_v2无法使用？？image会锁定VM的size吗？还是免费订阅的问题？先使用同样的size吧。
+
+az vm create \
+    --resource-group consul \
+    --name myVM \
+    --image consul-ubuntu-2020-03-23-034216 \
+    --admin-username azureuser \
+    --generate-ssh-keys \
+    --size Standard_F2s_v2
+
+[r-user@test-vm ~]$ az vm create \
+>     --resource-group consul \
+>     --name myVM \
+>     --image consul-ubuntu-2020-03-23-034216 \
+>     --admin-username azureuser \
+>     --generate-ssh-keys \
+>     --size Standard_F2s_v2
+{
+  "fqdns": "",
+  "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/resourceGroups/consul/providers/Microsoft.Compute/virtualMachines/myVM",
+  "location": "japaneast",
+  "macAddress": "00-0D-3A-51-EB-DA",
+  "powerState": "VM running",
+  "privateIpAddress": "10.0.0.4",
+  "publicIpAddress": "13.78.63.43",
+  "resourceGroup": "consul",
+  "zones": ""
+}
+
+
+[r-user@test-vm ~]$ ssh azureuser@13.78.63.43
+Welcome to Ubuntu 16.04.6 LTS (GNU/Linux 4.15.0-1071-azure x86_64)
+
+ * Documentation:  https://help.ubuntu.com
+ * Management:     https://landscape.canonical.com
+ * Support:        https://ubuntu.com/advantage
+
+ * Latest Kubernetes 1.18 beta is now available for your laptop, NUC, cloud
+   instance or Raspberry Pi, with automatic updates to the final GA release.
+
+     sudo snap install microk8s --channel=1.18/beta --classic
+
+ * Multipass 1.1 adds proxy support for developers behind enterprise
+   firewalls. Rapid prototyping for cloud operations just got easier.
+
+     https://multipass.run/
+
+0 packages can be updated.
+0 updates are security updates.
+
+
+5 updates could not be installed automatically. For more details,
+see /var/log/unattended-upgrades/unattended-upgrades.log
+
+
+The programs included with the Ubuntu system are free software;
+the exact distribution terms for each program are described in the
+individual files in /usr/share/doc/*/copyright.
+
+Ubuntu comes with ABSOLUTELY NO WARRANTY, to the extent permitted by
+applicable law.
+
+To run a command as administrator (user "root"), use "sudo <command>".
+See "man sudo_root" for details.
+
+azureuser@myVM:~$ uname -a
+Linux myVM 4.15.0-1071-azure #76-Ubuntu SMP Wed Feb 12 03:02:44 UTC 2020 x86_64 x86_64 x86_64 GNU/Linux
+azureuser@myVM:~$ consul -v
+Consul v1.7.2
+Protocol 2 spoken by default, understands 2 to 3 (agent will automatically use protocol >2 when speaking to compatible agents)
+
+
+UbuntuでGPG（GnuPG）公開鍵登録、認証
+azureuser@myVM:~$ gpg --keyserver packages.microsoft.com --recv-keys EB3E94ADBE1229CF
+gpg: directory `/home/azureuser/.gnupg' created
+gpg: new configuration file `/home/azureuser/.gnupg/gpg.conf' created
+gpg: WARNING: options in `/home/azureuser/.gnupg/gpg.conf' are not yet active during this run
+gpg: keyring `/home/azureuser/.gnupg/secring.gpg' created
+gpg: keyring `/home/azureuser/.gnupg/pubring.gpg' created
+gpg: requesting key BE1229CF from hkp server packages.microsoft.com
+gpg: /home/azureuser/.gnupg/trustdb.gpg: trustdb created
+gpg: key BE1229CF: public key "Microsoft (Release signing) <gpgsecurity@microsoft.com>" imported
+gpg: Total number processed: 1
+gpg:               imported: 1  (RSA: 1)
+
+azureuser@myVM:~$ sudo apt-key adv --keyserver packages.microsoft.com --recv-keys EB3E94ADBE1229CF
+Executing: /tmp/tmp.BOl4N8kmJ4/gpg.1.sh --keyserver
+packages.microsoft.com
+--recv-keys
+EB3E94ADBE1229CF
+gpg: requesting key BE1229CF from hkp server packages.microsoft.com
+gpg: key BE1229CF: "Microsoft (Release signing) <gpgsecurity@microsoft.com>" not changed
+gpg: Total number processed: 1
+gpg:              unchanged: 1
+
+azureuser@myVM:~$ apt-key list
+/etc/apt/trusted.gpg
+--------------------
+pub   1024D/437D05B5 2004-09-12
+uid                  Ubuntu Archive Automatic Signing Key <ftpmaster@ubuntu.com>
+sub   2048g/79164387 2004-09-12
+
+pub   4096R/C0B21F32 2012-05-11
+uid                  Ubuntu Archive Automatic Signing Key (2012) <ftpmaster@ubuntu.com>
+
+pub   4096R/EFE21092 2012-05-11
+uid                  Ubuntu CD Image Automatic Signing Key (2012) <cdimage@ubuntu.com>
+
+pub   1024D/FBB75451 2004-12-30
+uid                  Ubuntu CD Image Automatic Signing Key <cdimage@ubuntu.com>
+
+pub   2048R/BE1229CF 2015-10-28
+uid                  Microsoft (Release signing) <gpgsecurity@microsoft.com>
 
 
 
