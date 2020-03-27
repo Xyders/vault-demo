@@ -4619,8 +4619,87 @@ virtualMachines  japaneast    Standard_F72s_v2  1,2,3    ['MaxResourceVolumeMB=5
   "type": "Microsoft.Resources/resourceGroups"
 }
 
+然后创建storage account，名字为：myconsulstoacc
+az storage account create \
+    --name myconsulstoacc \
+    --resource-group consul \
+    --location japaneast \
+    --sku Standard_ZRS \
+    --encryption-service blob
 
-
+[r-user@test-vm ~]$ az storage account create \
+>     --name myconsulstoacc \
+>     --resource-group consul \
+>     --location japaneast \
+>     --sku Standard_ZRS \
+>     --encryption-service blob
+{
+  "accessTier": "Hot",
+  "azureFilesIdentityBasedAuthentication": null,
+  "blobRestoreStatus": null,
+  "creationTime": "2020-03-26T04:55:46.013062+00:00",
+  "customDomain": null,
+  "enableHttpsTrafficOnly": true,
+  "encryption": {
+    "keySource": "Microsoft.Storage",
+    "keyVaultProperties": null,
+    "services": {
+      "blob": {
+        "enabled": true,
+        "keyType": "Account",
+        "lastEnabledTime": "2020-03-26T04:55:46.059993+00:00"
+      },
+      "file": {
+        "enabled": true,
+        "keyType": "Account",
+        "lastEnabledTime": "2020-03-26T04:55:46.059993+00:00"
+      },
+      "queue": null,
+      "table": null
+    }
+  },
+  "failoverInProgress": null,
+  "geoReplicationStats": null,
+  "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/resourceGroups/consul/providers/Microsoft.Storage/storageAccounts/myconsulstoacc",
+  "identity": null,
+  "isHnsEnabled": null,
+  "kind": "StorageV2",
+  "largeFileSharesState": null,
+  "lastGeoFailoverTime": null,
+  "location": "japaneast",
+  "name": "myconsulstoacc",
+  "networkRuleSet": {
+    "bypass": "AzureServices",
+    "defaultAction": "Allow",
+    "ipRules": [],
+    "virtualNetworkRules": []
+  },
+  "primaryEndpoints": {
+    "blob": "https://myconsulstoacc.blob.core.windows.net/",
+    "dfs": "https://myconsulstoacc.dfs.core.windows.net/",
+    "file": "https://myconsulstoacc.file.core.windows.net/",
+    "internetEndpoints": null,
+    "microsoftEndpoints": null,
+    "queue": "https://myconsulstoacc.queue.core.windows.net/",
+    "table": "https://myconsulstoacc.table.core.windows.net/",
+    "web": "https://myconsulstoacc.z11.web.core.windows.net/"
+  },
+  "primaryLocation": "japaneast",
+  "privateEndpointConnections": [],
+  "provisioningState": "Succeeded",
+  "resourceGroup": "consul",
+  "routingPreference": null,
+  "secondaryEndpoints": null,
+  "secondaryLocation": null,
+  "sku": {
+    "name": "Standard_ZRS",
+    "tier": "Standard"
+  },
+  "statusOfPrimary": "available",
+  "statusOfSecondary": null,
+  "tags": {},
+  "type": "Microsoft.Storage/storageAccounts"
+}
 
 
 最后别忘了：
@@ -4651,7 +4730,7 @@ WindowsServer  MicrosoftWindowsServer  2008-R2-SP1         MicrosoftWindowsServe
 az vm image list --offer Debian --all --output table
 
 
-进行第一次的packer build，Terraform等配置文件没有任何修改，只是修改了Azure的配置部分。
+进行第一次的packer build，shell脚本文件基本没有修改，只是修改了Azure的配置部分。
 [r-user@test-vm vault-demo]$ ~/packer build consul.json
 azure-arm: output will be in this color.
 
@@ -5276,7 +5355,7 @@ ManagedImageId: /subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/resourceGrou
 ManagedImageLocation: japaneast
 
 
-
+查看生成的image文件：
 [r-user@test-vm ~]$ az image show --resource-group consul --name consul-ubuntu-2020-03-23-034216
 {
   "hyperVgeneration": "V1",
@@ -5312,6 +5391,78 @@ ManagedImageLocation: japaneast
 }
 
 
+[r-user@test-vm ~]$ az image list
+[
+  {
+    "hyperVgeneration": "V1",
+    "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/resourceGroups/CONSUL/providers/Microsoft.Compute/images/consul-ubuntu-2020-03-23-034216",
+    "location": "japaneast",
+    "name": "consul-ubuntu-2020-03-23-034216",
+    "provisioningState": "Succeeded",
+    "resourceGroup": "CONSUL",
+    "sourceVirtualMachine": {
+      "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/resourceGroups/packer-Resource-Group-7unjzqbx3r/providers/Microsoft.Compute/virtualMachines/pkrvm7unjzqbx3r",
+      "resourceGroup": "packer-Resource-Group-7unjzqbx3r"
+    },
+    "storageProfile": {
+      "dataDisks": [],
+      "osDisk": {
+        "blobUri": null,
+        "caching": "ReadWrite",
+        "diskEncryptionSet": null,
+        "diskSizeGb": 30,
+        "managedDisk": {
+          "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/resourceGroups/PACKER-RESOURCE-GROUP-7UNJZQBX3R/providers/Microsoft.Compute/disks/pkros7unjzqbx3r",
+          "resourceGroup": "PACKER-RESOURCE-GROUP-7UNJZQBX3R"
+        },
+        "osState": "Generalized",
+        "osType": "Linux",
+        "snapshot": null,
+        "storageAccountType": "Standard_LRS"
+      },
+      "zoneResilient": false
+    },
+    "tags": null,
+    "type": "Microsoft.Compute/images"
+  },
+  {
+    "hyperVgeneration": "V1",
+    "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/resourceGroups/CONSUL/providers/Microsoft.Compute/images/consul-ubuntu-2020-03-25-040954",
+    "location": "japaneast",
+    "name": "consul-ubuntu-2020-03-25-040954",
+    "provisioningState": "Succeeded",
+    "resourceGroup": "CONSUL",
+    "sourceVirtualMachine": {
+      "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/resourceGroups/packer-Resource-Group-fmtsv4uco2/providers/Microsoft.Compute/virtualMachines/pkrvmfmtsv4uco2",
+      "resourceGroup": "packer-Resource-Group-fmtsv4uco2"
+    },
+    "storageProfile": {
+      "dataDisks": [],
+      "osDisk": {
+        "blobUri": null,
+        "caching": "ReadWrite",
+        "diskEncryptionSet": null,
+        "diskSizeGb": 30,
+        "managedDisk": {
+          "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/resourceGroups/PACKER-RESOURCE-GROUP-FMTSV4UCO2/providers/Microsoft.Compute/disks/pkrosfmtsv4uco2",
+          "resourceGroup": "PACKER-RESOURCE-GROUP-FMTSV4UCO2"
+        },
+        "osState": "Generalized",
+        "osType": "Linux",
+        "snapshot": null,
+        "storageAccountType": "Standard_LRS"
+      },
+      "zoneResilient": false
+    },
+    "tags": {
+      "dept": "Engineering",
+      "task": "Image deployment"
+    },
+    "type": "Microsoft.Compute/images"
+  }
+]
+
+
 缺省的Standard_DS1_v2无法使用？？image会锁定VM的size吗？还是免费订阅的问题？先使用同样的size吧。
 
 az vm create \
@@ -5342,7 +5493,234 @@ az vm create \
 }
 
 
-[r-user@test-vm ~]$ ssh azureuser@13.78.63.43
+[r-user@test-vm ~]$ az vm open-port --resource-group consul --name myVM --port 80
+{
+  "defaultSecurityRules": [
+    {
+      "access": "Allow",
+      "description": "Allow inbound traffic from all VMs in VNET",
+      "destinationAddressPrefix": "VirtualNetwork",
+      "destinationAddressPrefixes": [],
+      "destinationApplicationSecurityGroups": null,
+      "destinationPortRange": "*",
+      "destinationPortRanges": [],
+      "direction": "Inbound",
+      "etag": "W/\"ead746e0-88d7-4b27-994c-6506269e0fce\"",
+      "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/resourceGroups/consul/providers/Microsoft.Network/networkSecurityGroups/myVMNSG/defaultSecurityRules/AllowVnetInBound",
+      "name": "AllowVnetInBound",
+      "priority": 65000,
+      "protocol": "*",
+      "provisioningState": "Succeeded",
+      "resourceGroup": "consul",
+      "sourceAddressPrefix": "VirtualNetwork",
+      "sourceAddressPrefixes": [],
+      "sourceApplicationSecurityGroups": null,
+      "sourcePortRange": "*",
+      "sourcePortRanges": [],
+      "type": "Microsoft.Network/networkSecurityGroups/defaultSecurityRules"
+    },
+    {
+      "access": "Allow",
+      "description": "Allow inbound traffic from azure load balancer",
+      "destinationAddressPrefix": "*",
+      "destinationAddressPrefixes": [],
+      "destinationApplicationSecurityGroups": null,
+      "destinationPortRange": "*",
+      "destinationPortRanges": [],
+      "direction": "Inbound",
+      "etag": "W/\"ead746e0-88d7-4b27-994c-6506269e0fce\"",
+      "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/resourceGroups/consul/providers/Microsoft.Network/networkSecurityGroups/myVMNSG/defaultSecurityRules/AllowAzureLoadBalancerInBound",        
+      "name": "AllowAzureLoadBalancerInBound",
+      "priority": 65001,
+      "protocol": "*",
+      "provisioningState": "Succeeded",
+      "resourceGroup": "consul",
+      "sourceAddressPrefix": "AzureLoadBalancer",
+      "sourceAddressPrefixes": [],
+      "sourceApplicationSecurityGroups": null,
+      "sourcePortRange": "*",
+      "sourcePortRanges": [],
+      "type": "Microsoft.Network/networkSecurityGroups/defaultSecurityRules"
+    },
+    {
+      "access": "Deny",
+      "description": "Deny all inbound traffic",
+      "destinationAddressPrefix": "*",
+      "destinationAddressPrefixes": [],
+      "destinationApplicationSecurityGroups": null,
+      "destinationPortRange": "*",
+      "destinationPortRanges": [],
+      "direction": "Inbound",
+      "etag": "W/\"ead746e0-88d7-4b27-994c-6506269e0fce\"",
+      "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/resourceGroups/consul/providers/Microsoft.Network/networkSecurityGroups/myVMNSG/defaultSecurityRules/DenyAllInBound",
+      "name": "DenyAllInBound",
+      "priority": 65500,
+      "protocol": "*",
+      "provisioningState": "Succeeded",
+      "resourceGroup": "consul",
+      "sourceAddressPrefix": "*",
+      "sourceAddressPrefixes": [],
+      "sourceApplicationSecurityGroups": null,
+      "sourcePortRange": "*",
+      "sourcePortRanges": [],
+      "type": "Microsoft.Network/networkSecurityGroups/defaultSecurityRules"
+    },
+    {
+      "access": "Allow",
+      "description": "Allow outbound traffic from all VMs to all VMs in VNET",
+      "destinationAddressPrefix": "VirtualNetwork",
+      "destinationAddressPrefixes": [],
+      "destinationApplicationSecurityGroups": null,
+      "destinationPortRange": "*",
+      "destinationPortRanges": [],
+      "direction": "Outbound",
+      "etag": "W/\"ead746e0-88d7-4b27-994c-6506269e0fce\"",
+      "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/resourceGroups/consul/providers/Microsoft.Network/networkSecurityGroups/myVMNSG/defaultSecurityRules/AllowVnetOutBound",
+      "name": "AllowVnetOutBound",
+      "priority": 65000,
+      "protocol": "*",
+      "provisioningState": "Succeeded",
+      "resourceGroup": "consul",
+      "sourceAddressPrefix": "VirtualNetwork",
+      "sourceAddressPrefixes": [],
+      "sourceApplicationSecurityGroups": null,
+      "sourcePortRange": "*",
+      "sourcePortRanges": [],
+      "type": "Microsoft.Network/networkSecurityGroups/defaultSecurityRules"
+    },
+    {
+      "access": "Allow",
+      "description": "Allow outbound traffic from all VMs to Internet",
+      "destinationAddressPrefix": "Internet",
+      "destinationAddressPrefixes": [],
+      "destinationApplicationSecurityGroups": null,
+      "destinationPortRange": "*",
+      "destinationPortRanges": [],
+      "direction": "Outbound",
+      "etag": "W/\"ead746e0-88d7-4b27-994c-6506269e0fce\"",
+      "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/resourceGroups/consul/providers/Microsoft.Network/networkSecurityGroups/myVMNSG/defaultSecurityRules/AllowInternetOutBound",
+      "name": "AllowInternetOutBound",
+      "priority": 65001,
+      "protocol": "*",
+      "provisioningState": "Succeeded",
+      "resourceGroup": "consul",
+      "sourceAddressPrefix": "*",
+      "sourceAddressPrefixes": [],
+      "sourceApplicationSecurityGroups": null,
+      "sourcePortRange": "*",
+      "sourcePortRanges": [],
+      "type": "Microsoft.Network/networkSecurityGroups/defaultSecurityRules"
+    },
+    {
+      "access": "Deny",
+      "description": "Deny all outbound traffic",
+      "destinationAddressPrefix": "*",
+      "destinationAddressPrefixes": [],
+      "destinationApplicationSecurityGroups": null,
+      "destinationPortRange": "*",
+      "destinationPortRanges": [],
+      "direction": "Outbound",
+      "etag": "W/\"ead746e0-88d7-4b27-994c-6506269e0fce\"",
+      "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/resourceGroups/consul/providers/Microsoft.Network/networkSecurityGroups/myVMNSG/defaultSecurityRules/DenyAllOutBound",
+      "name": "DenyAllOutBound",
+      "priority": 65500,
+      "protocol": "*",
+      "provisioningState": "Succeeded",
+      "resourceGroup": "consul",
+      "sourceAddressPrefix": "*",
+      "sourceAddressPrefixes": [],
+      "sourceApplicationSecurityGroups": null,
+      "sourcePortRange": "*",
+      "sourcePortRanges": [],
+      "type": "Microsoft.Network/networkSecurityGroups/defaultSecurityRules"
+    }
+  ],
+  "etag": "W/\"ead746e0-88d7-4b27-994c-6506269e0fce\"",
+  "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/resourceGroups/consul/providers/Microsoft.Network/networkSecurityGroups/myVMNSG",
+  "location": "japaneast",
+  "name": "myVMNSG",
+  "networkInterfaces": [
+    {
+      "dnsSettings": null,
+      "enableAcceleratedNetworking": null,
+      "enableIpForwarding": null,
+      "etag": null,
+      "hostedWorkloads": null,
+      "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/resourceGroups/consul/providers/Microsoft.Network/networkInterfaces/myVMVMNic",
+      "ipConfigurations": null,
+      "location": null,
+      "macAddress": null,
+      "name": null,
+      "networkSecurityGroup": null,
+      "primary": null,
+      "privateEndpoint": null,
+      "provisioningState": null,
+      "resourceGroup": "consul",
+      "resourceGuid": null,
+      "tags": null,
+      "tapConfigurations": null,
+      "type": null,
+      "virtualMachine": null
+    }
+  ],
+  "provisioningState": "Succeeded",
+  "resourceGroup": "consul",
+  "resourceGuid": "cdf2a5e6-0c20-4564-8e96-6caf2531b05d",
+  "securityRules": [
+    {
+      "access": "Allow",
+      "description": null,
+      "destinationAddressPrefix": "*",
+      "destinationAddressPrefixes": [],
+      "destinationApplicationSecurityGroups": null,
+      "destinationPortRange": "22",
+      "destinationPortRanges": [],
+      "direction": "Inbound",
+      "etag": "W/\"ead746e0-88d7-4b27-994c-6506269e0fce\"",
+      "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/resourceGroups/consul/providers/Microsoft.Network/networkSecurityGroups/myVMNSG/securityRules/default-allow-ssh",
+      "name": "default-allow-ssh",
+      "priority": 1000,
+      "protocol": "Tcp",
+      "provisioningState": "Succeeded",
+      "resourceGroup": "consul",
+      "sourceAddressPrefix": "*",
+      "sourceAddressPrefixes": [],
+      "sourceApplicationSecurityGroups": null,
+      "sourcePortRange": "*",
+      "sourcePortRanges": [],
+      "type": "Microsoft.Network/networkSecurityGroups/securityRules"
+    },
+    {
+      "access": "Allow",
+      "description": null,
+      "destinationAddressPrefix": "*",
+      "destinationAddressPrefixes": [],
+      "destinationApplicationSecurityGroups": null,
+      "destinationPortRange": "80",
+      "destinationPortRanges": [],
+      "direction": "Inbound",
+      "etag": "W/\"ead746e0-88d7-4b27-994c-6506269e0fce\"",
+      "id": "/subscriptions/6906f1b4-5e2d-4acf-bde6-db6d729ea826/resourceGroups/consul/providers/Microsoft.Network/networkSecurityGroups/myVMNSG/securityRules/open-port-80",
+      "name": "open-port-80",
+      "priority": 900,
+      "protocol": "*",
+      "provisioningState": "Succeeded",
+      "resourceGroup": "consul",
+      "sourceAddressPrefix": "*",
+      "sourceAddressPrefixes": [],
+      "sourceApplicationSecurityGroups": null,
+      "sourcePortRange": "*",
+      "sourcePortRanges": [],
+      "type": "Microsoft.Network/networkSecurityGroups/securityRules"
+    }
+  ],
+  "subnets": null,
+  "tags": {},
+  "type": "Microsoft.Network/networkSecurityGroups"
+}
+
+
+[r-user@test-vm ~]$ ssh azureuser@52.156.56.94
 Welcome to Ubuntu 16.04.6 LTS (GNU/Linux 4.15.0-1071-azure x86_64)
 
  * Documentation:  https://help.ubuntu.com
