@@ -7,15 +7,33 @@
 # ---------------------------------------------------------------------------------------------------------------------
 
 provider "azurerm" {
+# version = "~>1.32.0"
+
+# use_msi = true
+# (Optional) Defaults to false. can also be sourced from the ARM_MSI_ENDPOINT Environment Variable
+
   subscription_id = "${var.subscription_id}"
+  tenant_id = "${var.tenant_id}"
+
   client_id = "${var.client_id}"
   client_secret = "${var.secret_access_key}"
-  tenant_id = "${var.tenant_id}"
 }
 
 terraform {
   required_version = ">= 0.10.0"
 }
+
+# ---------------------------------------------------------------------------------------------------------------------
+# A resource group is a fundamental object in the Azure Resource Manager (ARM) deployment model, 
+# and it is required to create, modify, or destroy infrastructure in ARM. 
+# A configuration can create a new resource group or use an existing group, and often does both.
+# ---------------------------------------------------------------------------------------------------------------------
+#resource "azurerm_resource_group" "xx}" {
+# The resource name is used to refer to the object created in the resource block throughout the configuration.
+# It is not the same as the name of the resource group in Azure.
+#    name     = "${var.resource_group_name}"
+#    location = "${var.location}"
+#}
 
 # ---------------------------------------------------------------------------------------------------------------------
 # CREATE THE NECESSARY NETWORK RESOURCES FOR THE EXAMPLE

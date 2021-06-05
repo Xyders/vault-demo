@@ -229,8 +229,19 @@ All auth methods map identities back to the core policies that are configured wi
 Vault itself is the single policy authority, unlike authentication where you can enable multiple auth methods. 
 Any enabled auth method must map identities to these core policies.
 
-下面看一下LDAP的auth过程
 
+
+
+
+
+
+
+
+以下内容为此handson文档的实践。
+https://github.com/hashicorp-japan/vault-workshop-jp
+
+
+下面看一下LDAP的auth过程
 ===============================================================================================================
 ■　Docker安装
 yum remove docker docker-client docker-client-latest docker-common docker-latest docker-latest-logrotate docker-logrotate docker-engine
@@ -264,6 +275,43 @@ docker rm my-openldap-container
 ■　启动container
 ./1.start_ldap_server.sh
 内容：
+IMAGE=osixia/openldap:1.2.2
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
+. $DIR/env.sh
+
+echo
+echo "Running: $0: Starting LDAP Server"
+docker pull ${IMAGE}
+docker rm openldap &> /dev/null
+
+echo docker run --hostname ${LDAP_HOSTNAME} \
+  -p 389:389 \
+  -p 689:689 \
+  -e LDAP_ORGANISATION="${LDAP_ORGANISATION}" \
+  -e LDAP_DOMAIN="${LDAP_DOMAIN}" \
+  -e LDAP_ADMIN_PASSWORD="${LDAP_ADMIN_PASSWORD}" \
+  -e LDAP_READONLY_USER=${LDAP_READONLY_USER} \
+  -e LDAP_READONLY_USER_USERNAME=${LDAP_READONLY_USER_USERNAME} \
+  -e LDAP_READONLY_USER_PASSWORD=${LDAP_READONLY_USER_PASSWORD} \
+  -v ${DIR}/ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom \
+  --name openldap \
+  --detach ${IMAGE} --copy-service
+
+docker run --hostname ${LDAP_HOSTNAME} \
+  -p 389:389 \
+  -p 689:689 \
+  -e LDAP_ORGANISATION="${LDAP_ORGANISATION}" \
+  -e LDAP_DOMAIN="${LDAP_DOMAIN}" \
+  -e LDAP_ADMIN_PASSWORD="${LDAP_ADMIN_PASSWORD}" \
+  -e LDAP_READONLY_USER=${LDAP_READONLY_USER} \
+  -e LDAP_READONLY_USER_USERNAME=${LDAP_READONLY_USER_USERNAME} \
+  -e LDAP_READONLY_USER_PASSWORD=${LDAP_READONLY_USER_PASSWORD} \
+  -v ${DIR}/ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom \
+  --name openldap \
+  --detach ${IMAGE} --copy-service
+
+
+实际上执行的内容如下做参考。
 docker run --hostname ldap.ourcorp.com \
 -p 389:389 -p 689:689 \
 -e LDAP_ORGANISATION=OurCorp Inc \
@@ -275,24 +323,85 @@ docker run --hostname ldap.ourcorp.com \
 -v /ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom \
 --name openldap \
 --detach --copy-service
+
 然后可通过ldapsearch，ldapadd，ldapdelete，ldapmodify等参数查询、新增、删除、修改内容信息
 更多请参考https://github.com/osixia/docker-openldap
 注意-v, --volume=[]， 给容器挂载存储卷，挂载到容器的某个目录。在ldif里面保存了用文本格式记录的目录数据库的信息。
 
 
-在LDAP中每个条目均有自己的DN和RDN。DN是该条目在整个树中的唯一名称标识，RDN是条目在父节点下的唯一名称标识，如同文件系统中，带路径的文件名就是DN，文件名就是RDN。
-dn (distinguished name) ：一条记录的位置（每一个条目的唯一的标识名）
+
+对于LDAP的概念稍作一些解释：
+在LDAP中每个条目均有自己的DN和RDN。DN是该条目在整个树中的唯一名称标识，RDN是条目在父节点下的唯一名称标识，
+如同文件系统中，带路径的文件名就是DN，文件名就是RDN。
+
+DN是一个entry的名字，它必须是唯一的，它类似于一个关系型数据库的唯一关键字。
+DN也表明了该条目与DIT树的其他部分之间的关系，它类似于这种方式：一个文件的全路径名表明硬盘上的一个特定文件与系统中的其他文件之间的关系。
+当从根目录读取文件时，读取系统上的文件路径是从左到右读取的，但是当从根目录读取DN时，是从右到左读DN的。如：
+uid = jordan,ou = nba,o = american
+表示定义了在组织american中的小组为nba的用户jordan的用户。其中一个DN名的最左边部分叫相对区分名称RDN（relative distinguishedname），
+它由一个entry内的属性/值组成，如前面的uid = jordan是RDN，后面的可有可无。
+basedn就是目录树的根，一般的形式：dc=baidu,dc=com,dc=cn
+
+属性(Attribute)：定义
+dn (distinguished name) ：一条记录的位置（每一个entry的唯一的标识名）
 dc (domain component) ：一条记录所属区域（哪一棵树，根节点）DNS域名
 ou (organization unit) ：一条记录所属组织（树下的分叉，部门名）
+o (organization) : 公司名称	(例：org)
 cn/uid (common name / user ID) ：一条记录的名字/ID（叶子节点的名字，员工名）
 sn (surname)
-rdn (relative dn)
-basedn就是目录树的根，一般的形式：dc=baidu,dc=com,dc=cn
+mail
+其中一个属性可以有一个或多个值，如一个用户可以有多个mail。
+
 示例：
 OU=徐汇区事业部,OU=上海分公司,DC=IFire47,DC=com 
 解读：域(IFire47.com)里的(ou)上海分公司里的(ou)(徐汇区事业部)
 CN=张三,OU=销售部,OU=北京昌平区事业部,OU=北京分公司,DC=IFire47,DC=com
 解读：域(IFire47.com)里的(ou)北京分公司里的(ou)北京昌平区事业部里的(ou)销售部的(user)张三
+
+
+objectClass(对象类)是属性的集合。
+比如人员（person）含有姓（sn）、名（cn）、电话(telephoneNumber)、密码(userPassword)等属性，
+单位职工(organizationalPerson)是人员(person)的继承类，除了上述属性之外还含有职务（title）、邮政编码（postalCode）、通信地址(postalAddress)等属性。
+objectClass有着严格的等级之分，最顶层是top和alias。例如，organizationalPerson这个objectClass就隶属于person，而person又隶属于top。
+objectClass可分为以下3类：
+结构型（Structural）：如person和organizationUnit；
+辅助型（Auxiliary）：如extensibeObject；
+抽象型（Abstract）：如top，抽象型的objectClass不能直接使用。
+
+在OpenLDAP的schema中定义了很多objectClass，下面列出部分常用的objectClass的名称。
+account
+alias
+dcobject
+domain
+ipHost
+organization
+organizationalRole
+organizationalUnit
+person
+organizationalPerson
+inetOrgPerson
+residentialPerson
+posixAccount
+posixGroup
+
+
+LDIF（LDAP Data Interchange Format） 文件
+LDAP 数据交换格式文件，它以文本形式存储，用于在服务器之间交换数据。
+添加数据以及修改数据都需要通过 LDIF 文件来进行。
+可以跟关系型数据库的 SQL 文件做类比。
+LDIF 文件的格式一般如下：
+dn: <识别名>
+<属性 1>: <值 1>
+<属性 2>: <值 2>
+...
+
+
+groupOfNames stores its members in the Member attribute using FDN as the value.
+groupOfUniqueNames stores its members in the uniqueMember attribute also using FDN as value.
+uniqueMember attribute however is designed to be able to hold an extra unique identifier to tell the difference between two FDN's who have the same value in a group.
+Multiple objects, at different times, can be named by the same FDN. 
+
+
 
 
 ■　查询
@@ -438,33 +547,6 @@ result: 0 Success
 
 # numResponses: 2
 # numEntries: 1
-
-对于LDAP的概念稍作一些解释：
-objectClass有着严格的等级之分，最顶层是top和alias。例如，organizationalPerson这个objectClass就隶属于person，而person又隶属于top。
-objectClass可分为以下3类：
-结构型（Structural）：如person和organizationUnit；
-辅助型（Auxiliary）：如extensibeObject；
-抽象型（Abstract）：如top，抽象型的objectClass不能直接使用。
-在OpenLDAP的schema中定义了很多objectClass，下面列出部分常用的objectClass的名称。
-account
-alias
-dcobject
-domain
-ipHost
-organization
-organizationalRole
-organizationalUnit
-person
-organizationalPerson
-inetOrgPerson
-residentialPerson
-posixAccount
-posixGroup
-
-groupOfNames stores its members in the Member attribute using FDN as the value.
-groupOfUniqueNames stores its members in the uniqueMember attribute also using FDN as value.
-uniqueMember attribute however is designed to be able to hold an extra unique identifier to tell the difference between two FDN's who have the same value in a group.
-Multiple objects, at different times, can be named by the same FDN. 
 
 
 

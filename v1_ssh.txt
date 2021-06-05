@@ -1835,7 +1835,8 @@ path "kv-blog/metadata/it"
   capabilities = ["list", "read", "delete"]
 }
 
-It’s giving full rights to the secrets in the kv-blog/it path in Vault. “Data” and “delete” paths here are operation paths for the KV V2 engine and need to be expressed directly. 
+It’s giving full rights to the secrets in the kv-blog/it path in Vault. “Data” and “delete” paths here are operation paths 
+for the KV V2 engine and need to be expressed directly. 
 
 
 
@@ -1854,7 +1855,11 @@ path "kv-blog/data/{{identity.entity.aliases.auth_ldap_8a7d696a.name}}"
 }
 。。。。。。
 
-Notice the mount accessor identifier in the policy template. This means that when creating ACL templated policies, you have to do so after mounting your Authentication Methods. See 7_generate_dynamic_policy.sh for an example of how to do this.
+Notice the mount accessor identifier in the policy template. This means that when creating ACL templated policies, 
+you have to do so after mounting your Authentication Methods. See 7_generate_dynamic_policy.sh for an example of how to do this.
+
+
+
 
 [r-user@c-test vault_essential_patterns_blog]$ more 7_generate_dynamic_policy.sh
 . env.sh
@@ -1987,7 +1992,9 @@ pe "vault policy write kv-user-template policies/kv-user-template-policy.hcl"
 
 
 摘抄一下对ACL Templating的解释：
-The only way to specify non-static paths in ACL policies was to use globs (*) at the end of paths. Or, use plus-sign (+) for a single directory wildcard matching.
+The only way to specify non-static paths in ACL policies was to use globs (*) at the end of paths. 
+Or, use plus-sign (+) for a single directory wildcard matching.
+
 path "transit/keys/*" {
   capabilities = [ "read" ]
 }
@@ -1995,10 +2002,16 @@ path "transit/keys/*" {
 path "secret/+/apikey" {
   capabilities = [ "create", "read", "update", "delete", "list" ]
 }
-This makes many management and delegation tasks challenging. For example, allowing a user to change their own password by invoking the auth/userpass/users/<user_name>/password endpoint can require either a policy for every user or requires the use of Sentinel which is a part of Vault Enterprise.
+
+This makes many management and delegation tasks challenging. 
+For example, allowing a user to change their own password by invoking the auth/userpass/users/<user_name>/password endpoint 
+  can require either a policy for every user or requires the use of Sentinel which is a part of Vault Enterprise.
+
 Solution：
 As of Vault 0.11, ACL templating capability is available to allow a subset of user information to be used within ACL policy paths.
-This policy allows users to change their own password given that the username and password are defined in the userpass auth method. The mount accessor value (auth_userpass_6671d643 in this example) can be read from the sys/auth endpoint.
+This policy allows users to change their own password given that the username and password are defined in the userpass auth method. 
+The mount accessor value (auth_userpass_6671d643 in this example) can be read from the sys/auth endpoint.
+
 path "auth/userpass/users/{{identity.entity.aliases.auth_userpass_6671d643.name}}" {
   capabilities = [ "update" ]
   allowed_parameters = {
@@ -2034,8 +2047,8 @@ Success! Data written to: auth/ldap-um/groups/it
 
 Success! Data written to: auth/ldap-um/groups/security
 
-Setup MemberOf group logins for LDAP.   Need to use the entire DN for the group here as these are in the user's attributes
 
+Setup MemberOf group logins for LDAP.   Need to use the entire DN for the group here as these are in the user's attributes
 
 [r-user@c-test] vault write auth/ldap-mo/groups/hr policies=db-hr,transit-hr,kv-user-template
 
@@ -2046,12 +2059,14 @@ Success! Data written to: auth/ldap-mo/groups/hr
 
 Success! Data written to: auth/ldap-mo/groups/engineering
 
-Notice the difference between the two records? One is a uniqueMember lookup while the other is a memberOf lookup. While memberOf group names are longer, they are also unique because they reference the full DN, not just an alias name.
+Notice the difference between the two records? One is a uniqueMember lookup while the other is a memberOf lookup.
+While memberOf group names are longer, they are also unique because they reference the full DN, not just an alias name.
 
-
-
-
-
+uniqueMember具有DN语法,因此,断言中使用的值必须是DN,例如：(uniqueMember: uid=jack@solnet.cz,ou=People,dc=solnet,dc=cz,o=solnet). 
+memberOf属性：
+$ ldapsearch -x -H ldap://172.16.168.120 -b dc=xinhua,dc=io -D "cn=admin,dc=xinhua,dc=io" -W memberOf
+dn: uid=john,ou=people,dc=xinhua,dc=io
+memberOf: cn=master,ou=group,dc=xinhua,dc=io
 
 
 
@@ -2342,7 +2357,7 @@ Read out the dynamic DB credentials and store them as variables
 Getting dynamic db credentials from Vault. There are more elegant ways of doing this, but OSX doesn't support process substitution in its version of Bash, so working around (e.g. source <(cmd))
 
 
-注意这里我们用LDAP的方式登录账号并且获得对应的policy所规定的权限（再上面的it登录也是同样的），同时得到token。那么不适用LDAP这种auth方式，直接用token方式也可以得到权限：
+注意这里我们用LDAP的方式登录账号并且获得对应的policy所规定的权限（再上面的it登录也是同样的），同时得到token。那么不使用LDAP这种auth方式，直接用token方式也可以得到权限：
 vault token create -policy="xxx"
 or
 vault write auth/token/create policies=xxx
@@ -2693,8 +2708,7 @@ openldap
 
 Batch token demo:
 [r-user@c-test vault_essential_patterns_blog]$ . env.sh
-[r-user@c-test vault_essential_patterns_blog]$ vault auth
-disable  enable   help     list     tune
+
 [r-user@c-test vault_essential_patterns_blog]$ vault auth list
 Path         Type        Accessor                  Description
 ----         ----        --------                  -----------
@@ -2747,9 +2761,52 @@ renewable           false
 ttl                 767h59m43s
 type                batch
 
+上面的$ vault write auth/approle/login这个命令会增加1个entities计数。
+这个login并不会增加vault read /sys/internal/counters/tokens的计数。(与batch类型有关系么？)
+audit中没有出现token create的记录。
+[r-user@c-test vault_essential_patterns_blog]$ vault read /sys/internal/counters/tokens
+Key         Value
+---         -----
+counters    map[service_tokens:map[total:10]]
+[r-user@c-test vault_essential_patterns_blog]$ vault read /sys/internal/counters/entities
+Key         Value
+---         -----
+counters    map[entities:map[total:6]]
+[r-user@c-test vault_essential_patterns_blog]$ vault write -f auth/approle/role/billing3/secret-id
+Key                   Value
+---                   -----
+secret_id             c24c92e0-2f61-5881-87d8-8b066573c9f8
+secret_id_accessor    96b5a3d7-20f2-8cc0-01f5-bfa7a02a7c3b
+[r-user@c-test vault_essential_patterns_blog]$ vault read auth/approle/role/billing3/role-id
+Key        Value
+---        -----
+role_id    fe1fc76d-df06-58c1-648a-bd254b241c21
+[r-user@c-test vault_essential_patterns_blog]$ 
+[r-user@c-test vault_essential_patterns_blog]$ vault read /sys/internal/counters/entities
+Key         Value
+---         -----
+counters    map[entities:map[total:6]]
+[r-user@c-test vault_essential_patterns_blog]$ vault write auth/approle/login role_id=fe1fc76d-df06-58c1-648a-bd254b241c21 secret_id=c24c92e0-2f61-5881-87d8-8b066573c9f8
+Key                     Value
+---                     -----
+token                   b.AAAAAQJf4eLsfzE1GCZynNq_8l84WBqvAWicWy0-LRZC9pbrnELUkc0dmSqvVptldYj6Im1IjoRN5kAihRjDWIRko3hLZZNRudH3AFiF0bt7hbbJkINkMR2Kej_tY4aVnrEUpai0YGBfjGF_04QABIRv9cPB8pMNmFuWTV04czoZJ0gRiTWmJ0yVVIJMl23Z8Mk1dKPhGh5J1RGBWx0fpQNgkvPuUGQ
+token_accessor          n/a
+token_duration          768h
+token_renewable         false
+token_policies          ["billing3" "default"]
+identity_policies       []
+policies                ["billing3" "default"]
+token_meta_role_name    billing3
+[r-user@c-test vault_essential_patterns_blog]$ vault read /sys/internal/counters/entities
+Key         Value
+---         -----
+counters    map[entities:map[total:7]]
+[r-user@c-test vault_essential_patterns_blog]$ vault read /sys/internal/counters/tokens
+Key         Value
+---         -----
+counters    map[service_tokens:map[total:10]]
 
-这个login并不会增加vault read /sys/internal/counters/tokens和entities中的计数。
-audit中也没有出现token create的记录。
+
 
 
 
@@ -5821,6 +5878,40 @@ uid                  Microsoft (Release signing) <gpgsecurity@microsoft.com>
 ★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★
 ★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★
 
+Delivering Secret Zero: Vault AppRole with Terraform and Chef webinar
+https://learn.hashicorp.com/vault/identity-access-management/iam-approle-trusted-entities
+https://github.com/hashicorp/vault-guides/tree/master/identity/vault-chef-approle
+
+★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★
+★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★
+★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★
+
+★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★
+★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★
+★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★
+
+migrating an application from a monolithic application running on a virtual machine to microservices running on Kubernetes, using Consul Service Mesh.
+https://github.com/eveld/hashidays
+
+★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★
+★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★
+★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★★~☆·☆.~*∴*~★*∴ *·�������������~*★*∴*★~☆·☆.~*∴*~★
+
+★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★
+★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★
+★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★★~☆·☆.~*∴*~★*∴ *·∴~*★*∴*★~☆·☆.~*∴*~★
+
+
+Erik's monolith to microservices demo 
+https://github.com/eveld
+
+
+Lachlan White	
+Visualising a Cloud Native Operating Model for Enterprise Adoption
+https://medium.com/@lachlan_white/visualising-a-cloud-native-operating-model-for-enterprise-adoption-b70cc5790d48
+https://prezi.com/view/7HjwUVryihSSCbglyEZy/
+What Australia’s AGL Energy Learned About Cloud Native Compliance
+https://thenewstack.io/what-australias-agl-energy-learned-about-cloud-native-compliance/
 
 
 https://www.vaultproject.io/api-docs/system/audit/
@@ -5842,3 +5933,50 @@ Of course you shouldn't unhash everything in the audit log, otherwise you'll end
 从另外一台主机执行：
 [r-user@test-vm ~]$ VAULT_ADDR="http://172.18.1.104:8200" vault status
 Error checking seal status: Get http://172.18.1.104:8200/v1/sys/seal-status: dial tcp 172.18.1.104:8200: i/o timeout
+
+
+
+
+/CentOS Oh-My-Zsh
+# 安装
+yum -y install zsh
+# 设置zsh为默认shell
+chsh -s /bin/zsh
+
+# ohmyzsh
+sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+# 修改配置文件
+vi ~/.zshrc
+# 主题
+ZSH_THEME="agnoster"
+# 编译配置文件,使修改后的文件生效
+source ~/.zshrc
+# 打开插件安装路径
+cd ~/.oh-my-zsh/custom/plugins
+
+然后安装字体Menlo-for-Powerline，不然会乱码
+git clone https://github.com/abertsch/Menlo-for-Powerline.git 
+cd Menlo-for-Powerline
+sudo mv "Menlo for Powerline.ttf" /usr/share/fonts/ 
+sudo fc-cache -vf /usr/share/fonts/
+没有成功。。。还是乱码，暂时放弃，恢复bash
+
+
+# 语法高亮插件
+git clone https://github.com/zsh-users/zsh-syntax-highlighting.git
+echo "source ${(q-)PWD}/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" >> ${ZDOTDIR:-$HOME}/.zshrc
+source ./zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+# 自动提示插件
+git clone https://github.com/zsh-users/zsh-autosuggestions.git
+echo "source ${(q-)PWD}/zsh-autosuggestions/zsh-autosuggestions.zsh" >> ${ZDOTDIR:-$HOME}/.zshrc
+source ./zsh-autosuggestions/zsh-autosuggestions.zsh
+
+
+
+[r-user@test-vm ~]$ grep r-user /etc/passwd
+r-user:x:1001:1001:Rakuten Cloud User:/home/r-user:/bin/bash
+[r-user@test-vm ~]$ sudo usermod --shell /bin/zsh r-user
+[r-user@test-vm ~]$ grep r-user /etc/passwd
+r-user:x:1001:1001:Rakuten Cloud User:/home/r-user:/bin/zsh
+
+
